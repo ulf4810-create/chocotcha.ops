@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#ffffff">
+<title>チョコっちゃ‼運営ボード</title>
+<link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+<div>
+<h1>チョコっちゃ‼フェスタ2027 運営ボード</h1>
+<div class="meta">運営メンバー専用｜最終更新 <span id="upd">—</span></div>
+</div>
+<div class="cd">開催 2/14（日）まで <b id="cd">—</b> 日</div>
+</header>
+</div>
+
+<section id="gate" class="wrap gate hide" aria-labelledby="gt">
+<h2 id="gt">合言葉を入力してください</h2>
+<p class="sub">運営メンバー用のページです。合言葉は日髙さんから共有されたものを入力してください。この端末に記憶されます。</p>
+<form id="gform" autocomplete="off">
+<label for="gpass">合言葉</label>
+<input id="gpass" type="password" inputmode="text" required>
+<details class="adm"><summary>日髙さん用の合言葉（確認・非表示の操作に使う）</summary>
+<label for="gadmin">管理用の合言葉</label>
+<input id="gadmin" type="password">
+</details>
+<button type="submit" class="btn pri">開く</button>
+<p id="gerr" class="err" role="alert"></p>
+</form>
+</section>
+
+<div id="app" class="hide">
+<div class="bar0"><div class="wrap ctl">
+<label class="sel" for="me">あなた<select id="me"></select></label>
+<label class="sel" for="who">表示する担当<select id="who"></select></label>
+<div class="seg" role="group" aria-label="表示の切り替え"><button id="v-list" aria-pressed="true">リスト</button><button id="v-chart" aria-pressed="false">チャート</button></div>
+</div></div>
+<main class="wrap">
+<div class="tools">
+<label class="chk"><input type="checkbox" id="showhid"> 確認済み（非表示）も表示</label>
+<span id="role" class="sub"></span>
+<button id="reload" class="btn sm">最新にする</button>
+<button id="logout" class="btn sm ghost">合言葉を消す</button>
+</div>
+<p id="msg" class="note hide" role="status"></p>
+<section id="pl"></section>
+<section id="pc" class="hide">
+<div class="legend"><span><i></i>決定</span><span><i class="lp"></i>提案（未決定）</span><span><i class="lx"></i>外部の回答待ち</span><span><i class="lm"></i>期日</span><span>灰色の帯：年末年始・期末試験</span></div>
+<div class="scroll" id="sc"><div class="gantt" id="g"></div></div>
+</section>
+<p class="foot">項目を開くと、根拠（決定ログ番号）・メモ・やり取りが見られます。「完了を報告」しても項目は消えません。日髙さんが確認して非表示にします。「提案」はClaudeが決定日から逆算して置いた日付・担当で、主催の決定ではありません。</p>
+</main>
+</div>
+<script src="config.js?v=1"></script>
+<script src="app.js?v=1"></script>
+</body>
+</html>
