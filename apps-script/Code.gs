@@ -50,8 +50,12 @@ function json_(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
 }
 
+// スプレッドシート「チョコっちゃ‼運営サイト_データ」の ID（単独のプロジェクトとして作った場合にも使う）
+var SS_ID = '1A-ua2SoD1iGm5jk9CcYlWyCvWYn9zivrOC0eu0aTMHQ';
+
 function sheet_(name) {
-  return SpreadsheetApp.getActive().getSheetByName(name);
+  var ss = SpreadsheetApp.getActive() || SpreadsheetApp.openById(SS_ID);
+  return ss.getSheetByName(name);
 }
 
 function rows_(name) {
