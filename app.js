@@ -78,10 +78,17 @@
     SHEETS.forEach(function (x) { $(x).classList.remove("out"); $(x).classList.toggle("hide", x !== id); });
     $("scrim").classList.remove("hide", "out"); document.body.classList.add("modal");
     if (!S.open) lastFocus = document.activeElement;
+    // スマホの「戻る」で画面を閉じられるよう、開いたときに履歴を1つ積む（切り替え時は積まない）
+    if (!S.pushed) { try { history.pushState({ sheet: 1 }, "", location.href); S.pushed = true; } catch (e) {} }
     S.open = id;
     setTimeout(function () { var f = focusSel ? $(id).querySelector(focusSel) : null; (f || $(id).querySelector("[data-close]")).focus({ preventScroll: true }); }, 40);
   }
-  function closeSheets(instant) {
+  // 閉じる（×・外側・Esc・保存後など）。積んだ履歴も1つ戻して、戻るボタンの回数を合わせる
+  function closeSheets(instant, keepHistory) {
+    if (S.pushed && !keepHistory) { S.pushed = false; S.ignorePop = true; history.back(); }
+    hideSheets(instant);
+  }
+  function hideSheets(instant) {
     var cur = S.open; if (!cur) return;
     S.open = ""; S.cur = ""; document.body.classList.remove("modal");
     var el = $(cur), sc = $("scrim");
@@ -93,6 +100,11 @@
     lastFocus = null;
   }
   $("scrim").addEventListener("click", function () { closeSheets(); });
+  // ブラウザ・スマホの「戻る」：開いている画面を閉じるだけにする
+  window.addEventListener("popstate", function () {
+    if (S.ignorePop) { S.ignorePop = false; return; }
+    if (S.open) { S.pushed = false; hideSheets(); }
+  });
   document.addEventListener("keydown", function (e) { if (e.key === "Escape" && S.open) closeSheets(); });
 
   // ---- 管理モード（右上）
@@ -503,7 +515,7 @@
     var btn = $("addSubmit"), editing = S.editId; btn.disabled = true;
     if (editing) t.id = editing;
     api({ action: editing ? "editTask" : "addTask", task: t }).then(function (j) {
-      btn.disabled = false; clearForm(); formMode(""); closeSheets(true);
+      btn.disabled = false; clearForm(); formMode(""); hideSheets(true);
       say(editing ? "タスクを更新しました。" : "タスクを追加しました。");
       S.sig = ""; return load(false, true).then(function () { openTask(j.id); });
     }).catch(function (er) { btn.disabled = false; say(errText(er)); });

@@ -192,7 +192,7 @@ button.ring:active{transform:scale(.88)}
 .props dd{margin:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px}
 .props .sub{font-size:12.5px;color:var(--sub)}
 .ownl{gap:6px 14px!important}
-.ownl span{display:inline-flex;align-items:center;gap:6px}
+.ownl>span{display:inline-flex;align-items:center;gap:6px}
 .opts{display:flex;flex-wrap:wrap;gap:6px}
 .opt{height:30px;padding:0 11px;border:1px solid var(--line2);border-radius:15px;background:#fff;font-size:13px;color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background-color .15s,border-color .15s,color .15s}
 .opt i{width:7px;height:7px;border-radius:50%;background:var(--c)}
@@ -327,3 +327,4 @@ select.inp{appearance:none;padding-right:32px;background-image:linear-gradient(4
 .ci.is-new:hover{background:linear-gradient(90deg,#fbe4e0,var(--hover) 60%)}
 .ci:active{background:#f0f0f0}
 .ci .ctx{cursor:inherit}
+.av{justify-content:center;text-align:center;padding:0}
