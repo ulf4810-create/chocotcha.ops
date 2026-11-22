@@ -1,5 +1,5 @@
 /**
- * チョコっちゃ‼フェスタ2027 運営ボード用 API（Google Apps Script） v5
+ * チョコっちゃ‼フェスタ2027 運営ボード用 API（Google Apps Script） v6
  * データ：スプレッドシート「チョコっちゃ‼運営サイト_データ」
  * 閲覧：パスワード不要（URLを知っている人は誰でも見られる）。
  * コメント：誰でも書ける（名前の入力が必須）。管理者はコメントを削除（非表示）できる。
@@ -17,11 +17,14 @@ var MAX_NAME = 20;
 var PUBLIC = { data: 1, post: 1 };
 var TYPES = { done: 1, question: 1, reply: 1, note: 1 };
 var KINDS = { d: 1, p: 1, x: 1, m: 1 };
+// 優先度 1（最優先）〜4（なし）、状態（空欄＝日付から自動）
+var PRIOS = { '1': 1, '2': 1, '3': 1, '4': 1 };
+var STATES = { '': 1, todo: 1, doing: 1, hold: 1, done: 1 };
 // スプレッドシートの ID（単独のプロジェクトとして作った場合にも使う）
 var SS_ID = '1A-ua2SoD1iGm5jk9CcYlWyCvWYn9zivrOC0eu0aTMHQ';
 
 function doGet() {
-  return json_({ ok: true, service: 'chocotcha-ops', version: 5 });
+  return json_({ ok: true, service: 'chocotcha-ops', version: 6 });
 }
 
 function doPost(e) {
@@ -56,6 +59,8 @@ function doPost(e) {
         return json_(editTask_(req.task || {}, me));
       case 'deletePost':
         return json_(deletePost_(req.id));
+      case 'patchTask':
+        return json_(patchTask_(req.task || {}, me));
       default:
         return json_({ ok: false, error: 'unknown_action' });
     }
@@ -221,7 +226,7 @@ function isDate_(s) {
   return /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(new Date(s + 'T00:00:00Z').getTime());
 }
 
-// 追加・編集で共通の入力チェック。問題があれば { error }、なければ書き込む値を返す。
+// 追加・編集で共通の入力チェック。問題があれば { error }、なければ列名→値 を返す。
 function checkTask_(t) {
   var title = clean_(t.title, 200);
   if (!title) return { error: 'task_title' };
@@ -235,9 +240,21 @@ function checkTask_(t) {
   if (!owners.length) return { error: 'task_owner' };
   var start = String(t.start || ''), end = String(t.end || start);
   if (!isDate_(start) || !isDate_(end) || end < start) return { error: 'task_date' };
-  var kind = KINDS[t.kind] ? t.kind : 'd';
-  // 列の順：lane, title, owners, start, end, kind, ref, note（id と order は別）
-  return { cols: [lane, title, owners.join(','), "'" + start, "'" + end, kind, clean_(t.ref, 60), clean_(t.note, 300)] };
+  var f = { lane: lane, title: title, owners: owners.join(','), start: "'" + start, end: "'" + end,
+    ref: clean_(t.ref, 60), note: clean_(t.note, 300),
+    priority: PRIOS[String(t.priority)] ? String(t.priority) : '4',
+    state: STATES[String(t.state || '')] ? String(t.state || '') : '' };
+  if (KINDS[t.kind]) f.kind = t.kind; // 種別は画面からは送らない（既存の値を残す）
+  return { f: f };
+}
+
+// tasks シートの見出し（列名→列番号）。priority・state の列がなければ足す。
+function taskHead_(sh) {
+  var head = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0];
+  ['priority', 'state'].forEach(function (h) {
+    if (head.indexOf(h) < 0) { head.push(h); sh.getRange(1, head.length).setValue(h); }
+  });
+  return head;
 }
 
 function addTask_(t, me) {
@@ -247,17 +264,20 @@ function addTask_(t, me) {
   lock.waitLock(10000);
   try {
     var sh = sheet_('tasks');
+    var head = taskHead_(sh);
     var v = sh.getDataRange().getDisplayValues();
-    var maxId = 0, maxOrder = 0;
+    var oc = head.indexOf('order'), maxId = 0, maxOrder = 0;
     for (var i = 1; i < v.length; i++) {
       var n = parseInt(String(v[i][0]).replace(/\D/g, ''), 10);
       if (n > maxId) maxId = n;
-      var o = parseInt(v[i][9], 10);
+      var o = parseInt(v[i][oc], 10);
       if (o > maxOrder) maxOrder = o;
     }
     var id = 't' + ('00' + (maxId + 1)).slice(-3);
+    c.f.id = id; c.f.order = maxOrder + 1;
+    if (!c.f.kind) c.f.kind = 'd';
+    sh.appendRow(head.map(function (h) { return c.f[h] == null ? '' : c.f[h]; }));
     var at = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm');
-    sh.appendRow([id].concat(c.cols, [maxOrder + 1]));
     setConfig_('updated', at + ' JST｜' + me.name + 'がタスクを追加');
     return { ok: true, id: id };
   } finally {
@@ -265,21 +285,20 @@ function addTask_(t, me) {
   }
 }
 
-// 既存タスクを書き換える。id と並び順（order）は変えない。
-function editTask_(t, me) {
-  var id = clean_(t.id, 20);
-  var c = checkTask_(t);
-  if (c.error) return { ok: false, error: c.error };
+// 指定した列だけ書き換える（id と並び順は変えない）
+function writeTask_(id, f, me, what) {
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
     var sh = sheet_('tasks');
-    var v = sh.getDataRange().getDisplayValues();
+    var head = taskHead_(sh);
+    var v = sh.getRange(1, 1, sh.getLastRow(), 1).getDisplayValues();
     for (var i = 1; i < v.length; i++) {
       if (String(v[i][0]) === id) {
-        sh.getRange(i + 1, 2, 1, 8).setValues([c.cols]);
+        // 変わる列だけ書く（ほかの列を書き戻すと日付の文字が日付型に変わることがあるため）
+        head.forEach(function (h, j) { if (h !== 'id' && h !== 'order' && f.hasOwnProperty(h)) sh.getRange(i + 1, j + 1).setValue(f[h]); });
         var at = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm');
-        setConfig_('updated', at + ' JST｜' + me.name + 'がタスクを編集（' + id + '）');
+        setConfig_('updated', at + ' JST｜' + me.name + 'が' + what + '（' + id + '）');
         return { ok: true, id: id };
       }
     }
@@ -287,6 +306,27 @@ function editTask_(t, me) {
   } finally {
     lock.releaseLock();
   }
+}
+
+function editTask_(t, me) {
+  var c = checkTask_(t);
+  if (c.error) return { ok: false, error: c.error };
+  return writeTask_(clean_(t.id, 20), c.f, me, 'タスクを編集');
+}
+
+// 状態・優先度だけを変える（ボードの移動、丸印で完了など）
+function patchTask_(t, me) {
+  var f = {};
+  if (t.hasOwnProperty('state')) {
+    if (!STATES[String(t.state || '')]) return { ok: false, error: 'bad_state' };
+    f.state = String(t.state || '');
+  }
+  if (t.hasOwnProperty('priority')) {
+    if (!PRIOS[String(t.priority)]) return { ok: false, error: 'bad_prio' };
+    f.priority = String(t.priority);
+  }
+  if (!Object.keys(f).length) return { ok: false, error: 'bad_request' };
+  return writeTask_(clean_(t.id, 20), f, me, f.state != null ? '状態を変更' : '優先度を変更');
 }
 
 function setConfig_(key, value) {

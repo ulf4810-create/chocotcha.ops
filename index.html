@@ -6,7 +6,10 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#ffffff">
 <title>チョコっちゃ‼運営ボード</title>
-<link rel="stylesheet" href="style.css?v=7">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="style.css?v=8">
 </head>
 <body>
 <header class="appbar">
@@ -30,16 +33,23 @@
 
 <main id="app" class="wrap hide">
   <div class="tools">
+    <div class="seg" id="views" role="group" aria-label="表示の切り替え">
+      <button type="button" data-view="list" aria-pressed="true">リスト</button><button type="button" data-view="board" aria-pressed="false">ボード</button><button type="button" data-view="chart" aria-pressed="false">チャート</button>
+    </div>
+    <label class="sortw" id="sortW"><span>並べ替え</span><select id="sort">
+      <option value="due">期限順</option><option value="prio">優先度順</option><option value="state">状態別</option><option value="owner">担当別</option><option value="lane">分野別</option>
+    </select></label>
+    <label class="chk" id="showDoneL"><input type="checkbox" id="showDone"> 完了も表示</label>
+    <label class="chk hide" id="showhidL"><input type="checkbox" id="showhid"> 非表示も表示</label>
     <button id="addBtn" class="addline hide" type="button"><span class="plus" aria-hidden="true">＋</span>タスクを追加</button>
-    <label class="chk hide" id="showhidL"><input type="checkbox" id="showhid"> 確認済みも表示</label>
-    <div class="seg" role="group" aria-label="表示の切り替え"><button id="v-list" type="button" aria-pressed="true">リスト</button><button id="v-chart" type="button" aria-pressed="false">チャート</button></div>
   </div>
-  <section id="pl"></section>
-  <section id="pc" class="hide">
-    <div class="legend"><span><i></i>決定</span><span><i class="lp"></i>提案（未決定）</span><span><i class="lx"></i>外部の回答待ち</span><span><i class="lm"></i>期日</span><span><i class="lh"></i>年末年始・期末試験</span></div>
+  <section id="pl" class="pane"></section>
+  <section id="pb" class="pane hide"></section>
+  <section id="pc" class="pane hide">
+    <div class="legend"><span><i></i>期間</span><span><i class="lm"></i>1日だけ</span><span><i class="lh2"></i>保留</span><span><i class="ld"></i>完了</span><span><i class="lh"></i>年末年始・期末試験</span></div>
     <div class="scroll" id="sc"><div class="gantt" id="g"></div></div>
   </section>
-  <p class="foot">タスクを押すと、くわしい内容とコメントが見られます。コメントは誰でも書けます（名前が必要です）。「提案」はClaudeが決定日から逆算して置いた日付・担当で、主催の決定ではありません。</p>
+  <p class="foot">タスクを押すと、くわしい内容とコメントが見られます。コメントは誰でも書けます（名前が必要です）。状態は、日髙さんが設定していないものは日付から自動で「未着手／進行中」になります。</p>
 </main>
 
 <p id="msg" class="toast hide" role="status" aria-live="polite"></p>
@@ -48,15 +58,20 @@
 <section id="taskSheet" class="sheet hide" role="dialog" aria-modal="true" aria-labelledby="tsTitle"></section>
 
 <form id="addForm" class="sheet hide" role="dialog" aria-modal="true" aria-labelledby="addHead" autocomplete="off">
-  <div class="sh-head"><h2 id="addHead" class="sh-h2">タスクを追加</h2><button type="button" class="icon" data-close aria-label="閉じる"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5"/></svg></button></div>
+  <div class="sh-head"><h2 id="addHead" class="sh-h2">タスクを追加</h2><button type="button" class="icon" data-close aria-label="閉じる"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button></div>
   <div class="fbody">
     <div class="field"><label for="a-title">タスク名</label><input id="a-title" class="inp" type="text" maxlength="200" required></div>
     <div class="field"><label for="a-note">説明（任意）</label><textarea id="a-note" class="inp" maxlength="300" rows="2"></textarea></div>
     <div class="g2">
       <div class="field"><label for="a-start">開始日</label><input id="a-start" class="inp" type="date" min="2026-11-01" max="2027-03-31" required></div>
       <div class="field"><label for="a-end">期限</label><input id="a-end" class="inp" type="date" min="2026-11-01" max="2027-03-31" required></div>
+    </div>
+    <fieldset class="field"><legend>優先度</legend><div class="pick" id="a-prio">
+      <label class="p1"><input type="radio" name="a-prio" value="1"><span>P1 最優先</span></label><label class="p2"><input type="radio" name="a-prio" value="2"><span>P2 高</span></label><label class="p3"><input type="radio" name="a-prio" value="3"><span>P3 中</span></label><label class="p4"><input type="radio" name="a-prio" value="4" checked><span>P4 なし</span></label>
+    </div></fieldset>
+    <div class="g2">
+      <div class="field"><label for="a-state">状態</label><select id="a-state" class="inp"><option value="">自動（日付から）</option><option value="todo">未着手</option><option value="doing">進行中</option><option value="hold">保留</option><option value="done">完了</option></select></div>
       <div class="field"><label for="a-lane">分野</label><select id="a-lane" class="inp"></select></div>
-      <div class="field"><label for="a-kind">種別</label><select id="a-kind" class="inp"><option value="d">決定</option><option value="p">提案（未決定）</option><option value="x">外部の回答待ち</option><option value="m">期日（1日だけ）</option></select></div>
     </div>
     <fieldset class="field"><legend>担当（複数可）</legend><div id="a-owners" class="owners"></div></fieldset>
     <div class="field"><label for="a-ref">根拠（任意。例：D85、LINE 11/22）</label><input id="a-ref" class="inp" type="text" maxlength="60"></div>
@@ -65,7 +80,7 @@
 </form>
 
 <form id="admForm" class="sheet small hide" role="dialog" aria-modal="true" aria-labelledby="admHead" autocomplete="off">
-  <div class="sh-head"><h2 id="admHead" class="sh-h2">管理モード</h2><button type="button" class="icon" data-close aria-label="閉じる"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5"/></svg></button></div>
+  <div class="sh-head"><h2 id="admHead" class="sh-h2">管理モード</h2><button type="button" class="icon" data-close aria-label="閉じる"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button></div>
   <div class="fbody">
     <p class="sub">日髙さん専用です。ページを閉じる・再読み込みすると自動でログアウトします。</p>
     <div class="field"><label for="gpass">パスワード</label><input id="gpass" class="inp" type="password" required autocomplete="current-password"></div>
@@ -76,6 +91,6 @@
 
 <datalist id="names"></datalist>
 <script src="config.js?v=6"></script>
-<script src="app.js?v=8"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>
