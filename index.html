@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="style.css?v=9">
+<link rel="stylesheet" href="style.css?v=10">
 </head>
 <body>
 <header class="appbar">
@@ -34,17 +34,19 @@
 <main id="app" class="wrap hide">
   <div class="tools">
     <div class="seg" id="views" role="group" aria-label="表示の切り替え">
-      <button type="button" data-view="list" aria-pressed="true">リスト</button><button type="button" data-view="board" aria-pressed="false">ボード</button><button type="button" data-view="chart" aria-pressed="false">チャート</button>
+      <button type="button" data-view="list" aria-pressed="true">リスト</button><button type="button" data-view="board" aria-pressed="false">ボード</button><button type="button" data-view="chart" aria-pressed="false">チャート</button><button type="button" data-view="comments" aria-pressed="false" class="hide" id="v-cmt">コメント<span class="badge hide" id="cmtNew"></span></button>
     </div>
-    <label class="sortw" id="sortW"><span>並べ替え</span><select id="sort">
-      <option value="due">期限順</option><option value="prio">優先度順</option><option value="state">状態別</option><option value="owner">担当別</option><option value="lane">分野別</option>
+    <label class="sortw" id="sortW"><span>並べ方</span><select id="sort">
+      <option value="due">期限</option><option value="prio">優先度</option><option value="state">状態</option><option value="owner">担当</option><option value="lane">分野</option>
     </select></label>
     <label class="chk" id="showDoneL"><input type="checkbox" id="showDone"> 完了も表示</label>
     <label class="chk hide" id="showhidL"><input type="checkbox" id="showhid"> 非表示も表示</label>
+    <button id="resetBtn" class="btn sm ghost reset" type="button" title="全員・リスト・期限順（同じ期限は優先度順）に戻す">標準に戻す</button>
     <button id="addBtn" class="addline hide" type="button"><span class="plus" aria-hidden="true">＋</span>タスクを追加</button>
   </div>
   <section id="pl" class="pane"></section>
   <section id="pb" class="pane hide"></section>
+  <section id="pm" class="pane hide"></section>
   <section id="pc" class="pane hide">
     <div class="legend"><span><i></i>期間</span><span><i class="lm"></i>1日だけ</span><span><i class="lh2"></i>保留</span><span><i class="ld"></i>完了</span><span><i class="lh"></i>年末年始・期末試験</span></div>
     <div class="scroll" id="sc"><div class="gantt" id="g"></div></div>
@@ -91,6 +93,6 @@
 
 <datalist id="names"></datalist>
 <script src="config.js?v=6"></script>
-<script src="app.js?v=10"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>
