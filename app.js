@@ -305,12 +305,12 @@
     ps.forEach(function (p) {
       var t = TM[p.task], dl0 = dayLabel(p.at), isNew = seenAt && p.at > seenAt, s = stOf(t);
       if (dl0 !== day) { day = dl0; h += '<h2 class="sec-h cday">' + esc(dl0) + "</h2>"; }
-      h += '<article class="ci' + (isNew ? " is-new" : "") + '">' + av(p.member) + '<div class="ci-b">' +
+      h += '<article class="ci' + (isNew ? " is-new" : "") + '" data-open="' + esc(t.id) + '" tabindex="0" role="button" aria-label="' + esc("「" + t.title + "」のページを開く") + '">' + av(p.member) + '<div class="ci-b">' +
         '<div class="chd"><b>' + esc(nameOf(p.member)) + "</b>" + (M[p.member] ? '<span class="tagb">主催</span>' : "") + (isNew ? '<span class="new">新着</span>' : "") +
         (p.type === "done" ? '<span class="tagb ok">完了を記録</span>' : "") + "<time>" + esc(String(p.at).slice(11, 16)) + "</time>" +
         '<button type="button" class="icon" data-del="' + esc(p.id) + '" aria-label="このコメントを削除" title="削除">' + I.x + "</button></div>" +
         (p.text ? '<p class="ci-t">' + esc(p.text) + "</p>" : "") +
-        '<div class="ci-ctx"><button type="button" class="ctx" data-open="' + esc(t.id) + '"><span class="ctx-k">タスク</span><span class="ctx-t">' + esc(t.title) + "</span>" + dueHtml(t) + stPill(s) + "</button>" +
+        '<div class="ci-ctx"><span class="ctx"><span class="ctx-k">タスク</span><span class="ctx-t">' + esc(t.title) + "</span>" + dueHtml(t) + stPill(s) + "</span>" +
         '<button type="button" class="btn sm ghost" data-reply="' + esc(t.id) + '">返信</button></div>' +
         "</div></article>";
     });
@@ -538,12 +538,7 @@
     var t = e.target;
     var r = t.closest("[data-ring]"); if (r) { e.stopPropagation(); toggleDone(r.dataset.ring); return; }
     var w = t.closest("[data-who]"); if (w) { S.who = w.dataset.who; history.replaceState(null, "", S.who === "all" ? location.pathname + location.search : "#" + encodeURIComponent(S.who)); render(); return; }
-    var o = t.closest("[data-open]"); if (o && !o.closest(".sheet")) { openTask(o.dataset.open); return; }
-    if (t.closest("[data-close]")) { closeSheets(); return; }
-    var st = t.closest("[data-st]"); if (st) { var cur = TM[S.cur]; if ((cur.state || "") !== st.dataset.st) patch(S.cur, { state: st.dataset.st }, "状態を「" + (st.dataset.st ? ST[st.dataset.st].n : "自動") + "」にしました。"); return; }
-    var pr = t.closest("[data-pr]"); if (pr) { if (prOf(TM[S.cur]) !== pr.dataset.pr) patch(S.cur, { priority: pr.dataset.pr }, "優先度を" + PR[pr.dataset.pr].n + "にしました。"); return; }
     var rp = t.closest("[data-reply]"); if (rp) { openTask(rp.dataset.reply); setTimeout(function () { var ta = $("c-text"); if (ta) { ta.focus(); ta.scrollIntoView({ block: "center", behavior: reduced ? "auto" : "smooth" }); } }, 80); return; }
-    var ed = t.closest("[data-edit]"); if (ed) { openEdit(ed.dataset.edit); return; }
     var del = t.closest("[data-del]");
     if (del) {
       if (!window.confirm("このコメントを削除しますか？（閲覧者には表示されなくなります）")) return;
@@ -552,6 +547,11 @@
         .catch(function (er) { del.disabled = false; say(errText(er)); });
       return;
     }
+    var o = t.closest("[data-open]"); if (o && !o.closest(".sheet")) { openTask(o.dataset.open); return; }
+    if (t.closest("[data-close]")) { closeSheets(); return; }
+    var st = t.closest("[data-st]"); if (st) { var cur = TM[S.cur]; if ((cur.state || "") !== st.dataset.st) patch(S.cur, { state: st.dataset.st }, "状態を「" + (st.dataset.st ? ST[st.dataset.st].n : "自動") + "」にしました。"); return; }
+    var pr = t.closest("[data-pr]"); if (pr) { if (prOf(TM[S.cur]) !== pr.dataset.pr) patch(S.cur, { priority: pr.dataset.pr }, "優先度を" + PR[pr.dataset.pr].n + "にしました。"); return; }
+    var ed = t.closest("[data-edit]"); if (ed) { openEdit(ed.dataset.edit); return; }
     var hd = t.closest("[data-hide]");
     if (hd) {
       hd.disabled = true;

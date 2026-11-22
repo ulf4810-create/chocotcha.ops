@@ -322,3 +322,8 @@ select.inp{appearance:none;padding-right:32px;background-image:linear-gradient(4
 .ctx-t{color:var(--ink);font-weight:500;overflow-wrap:anywhere}
 .new{color:var(--acc);font-weight:700;font-size:12px}
 .sh-body .note,.cform+.note{margin-top:16px}
+.ci{cursor:pointer;transition:background-color .15s}
+.ci:hover{background:var(--hover)}
+.ci.is-new:hover{background:linear-gradient(90deg,#fbe4e0,var(--hover) 60%)}
+.ci:active{background:#f0f0f0}
+.ci .ctx{cursor:inherit}
