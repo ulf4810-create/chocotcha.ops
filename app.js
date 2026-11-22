@@ -5,7 +5,7 @@
   var ST = { todo: { n: "未着手", c: "var(--s-todo)" }, doing: { n: "進行中", c: "var(--s-doing)" }, hold: { n: "保留", c: "var(--s-hold)" }, done: { n: "完了", c: "var(--s-done)" } };
   var ST_ORDER = ["todo", "doing", "hold", "done"];
   var PR = { "1": { n: "P1", l: "最優先", c: "var(--p1)" }, "2": { n: "P2", l: "高", c: "var(--p2)" }, "3": { n: "P3", l: "中", c: "var(--p3)" }, "4": { n: "P4", l: "なし", c: "var(--p4)" } };
-  var SORTS = { due: 1, prio: 1, state: 1, owner: 1, lane: 1 }, VIEWS = { list: 1, board: 1, chart: 1, comments: 1 };
+  var SORTS = { due: 1, prio: 1, state: 1, owner: 1, lane: 1 }, BSORTS = { due: 1, prio: 1, start: 1, title: 1 }, VIEWS = { list: 1, board: 1, chart: 1, comments: 1 };
 
   // パスワードは保存しない（以前の版が保存した分は消す）。名前と表示の好みだけ端末に覚える。
   var ls = function (k, v) { try { if (v === undefined) return localStorage.getItem(k) || ""; localStorage.setItem(k, v); } catch (e) { return ""; } };
@@ -14,8 +14,9 @@
 
   var S = { ver: 0, pass: "", me: null, data: null, sig: "", isAdmin: false,
     view: VIEWS[P.view] ? P.view : "list", sort: SORTS[P.sort] ? P.sort : "due", showDone: !!P.showDone,
+    bgroup: SORTS[P.bgroup] ? P.bgroup : "state", bsort: BSORTS[P.bsort] ? P.bsort : "due",
     who: decodeURIComponent(location.hash.slice(1)) || "all", showHid: false, busy: false, cur: "", editId: "", open: "" };
-  var savePrefs = function () { ls("ops_prefs", JSON.stringify({ view: S.view, sort: S.sort, showDone: S.showDone })); };
+  var savePrefs = function () { ls("ops_prefs", JSON.stringify({ view: S.view, sort: S.sort, showDone: S.showDone, bgroup: S.bgroup, bsort: S.bsort })); };
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
   var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -268,17 +269,21 @@
   // 「並べ方」に合わせて列を作る。状態・優先度の列はドラッグで移動できる（管理モード）。
   function boardCols(ts) {
     var C = [], col = function (title, dot, field, val, list) { C.push({ title: title, dot: dot, field: field || "", val: val || "", list: list }); };
-    if (S.sort === "state") ST_ORDER.forEach(function (s) { col(ST[s].n, ST[s].c, "state", s, ts.filter(function (t) { return stOf(t) === s; })); });
-    else if (S.sort === "prio") ["1", "2", "3", "4"].forEach(function (p) { col(PR[p].n + " " + PR[p].l, PR[p].c, "priority", p, ts.filter(function (t) { return prOf(t) === p; })); });
-    else if (S.sort === "owner") S.data.members.forEach(function (m) { if (S.who !== "all" && m.key !== S.who) return; var l = ts.filter(function (t) { return own(t).indexOf(m.key) >= 0; }); if (l.length) col(esc(short(m.name)), m.color, "", "", l); });
-    else if (S.sort === "lane") Lanes.forEach(function (ln) { var l = ts.filter(function (t) { return t.lane === ln.key; }); if (l.length) col("# " + esc(ln.name), "", "", "", l); });
+    var G = S.bgroup;
+    if (G === "state") ST_ORDER.forEach(function (s) { col(ST[s].n, ST[s].c, "state", s, ts.filter(function (t) { return stOf(t) === s; })); });
+    else if (G === "prio") ["1", "2", "3", "4"].forEach(function (p) { col(PR[p].n + " " + PR[p].l, PR[p].c, "priority", p, ts.filter(function (t) { return prOf(t) === p; })); });
+    else if (G === "owner") S.data.members.forEach(function (m) { if (S.who !== "all" && m.key !== S.who) return; var l = ts.filter(function (t) { return own(t).indexOf(m.key) >= 0; }); if (l.length) col(esc(short(m.name)), m.color, "", "", l); });
+    else if (G === "lane") Lanes.forEach(function (ln) { var l = ts.filter(function (t) { return t.lane === ln.key; }); if (l.length) col("# " + esc(ln.name), "", "", "", l); });
     else [["期限切れ", "var(--over)", -1e9, today - 1], ["今日", "var(--today)", today, today], ["7日以内", "var(--week)", today + 1, today + 6], ["30日以内", "var(--p3)", today + 7, today + 30], ["それ以降", "var(--p4)", today + 31, 1e9]]
       .forEach(function (b) { col(b[0], b[1], "", "", ts.filter(function (t) { var e = D(t.end); return e >= b[2] && e <= b[3]; })); });
-    C.forEach(function (c) { c.list.sort(byDue); });
+    var cmp = { due: byDue, prio: byPrio,
+      start: function (a, b) { return D(a.start) - D(b.start) || byDue(a, b); },
+      title: function (a, b) { return String(a.title).localeCompare(String(b.title), "ja") || byDue(a, b); } }[S.bsort] || byDue;
+    C.forEach(function (c) { c.list.sort(cmp); });
     return C;
   }
   function renderBoard() {
-    var ts = visibleTasks(S.sort === "state");
+    var ts = visibleTasks(S.bgroup === "state");
     $("pb").innerHTML = '<div class="board">' + boardCols(ts).map(function (c) {
       var dr = S.isAdmin && c.field;
       return '<section class="col"' + (c.field ? ' data-field="' + c.field + '" data-val="' + c.val + '"' : "") + '><h2 class="col-h">' + (c.dot ? '<i style="--c:' + c.dot + '"></i>' : "") + c.title + "<small>" + c.list.length + '</small></h2><div class="cards">' +
@@ -321,7 +326,7 @@
     if (S.isAdmin && !seenAt) markSeen(); // 初回は既読から始める
     $("cmtNew").textContent = n; $("cmtNew").classList.toggle("hide", !n || S.view === "comments");
   }
-  var isDefault = function () { return S.who === "all" && S.view === "list" && S.sort === "due" && !S.showDone && !S.showHid; };
+  var isDefault = function () { return S.who === "all" && S.view === "list" && S.sort === "due" && S.bgroup === "state" && S.bsort === "due" && !S.showDone && !S.showHid; };
 
   // ---- チャート
   function renderChart() {
@@ -356,9 +361,10 @@
     Object.keys(PANE).forEach(function (v) { $(PANE[v]).classList.toggle("hide", S.view !== v); });
     [].forEach.call($("views").querySelectorAll("button"), function (b) { b.setAttribute("aria-pressed", b.dataset.view === S.view); });
     $("v-cmt").classList.toggle("hide", !S.isAdmin);
-    $("sortW").classList.toggle("hide", S.view === "chart" || S.view === "comments");
-    $("showDoneL").classList.toggle("hide", S.view === "comments" || (S.view === "board" && S.sort === "state"));
-    $("sort").value = S.sort; $("showDone").checked = S.showDone;
+    $("sortW").classList.toggle("hide", S.view !== "list");
+    $("groupW").classList.toggle("hide", S.view !== "board"); $("bsortW").classList.toggle("hide", S.view !== "board");
+    $("showDoneL").classList.toggle("hide", S.view === "comments" || (S.view === "board" && S.bgroup === "state"));
+    $("sort").value = S.sort; $("bgroup").value = S.bgroup; $("bsort").value = S.bsort; $("showDone").checked = S.showDone;
     $("resetBtn").disabled = isDefault();
     updateBadge();
     if (S.view === "list") renderList();
@@ -507,12 +513,14 @@
   $("showhid").addEventListener("change", function () { S.showHid = $("showhid").checked; render(); });
   // 標準に戻す：全員・リスト・期限順（同じ期限は優先度順）・完了と非表示は隠す
   $("resetBtn").addEventListener("click", function () {
-    S.who = "all"; S.view = "list"; S.sort = "due"; S.showDone = false; S.showHid = false; $("showhid").checked = false;
+    S.who = "all"; S.view = "list"; S.sort = "due"; S.bgroup = "state"; S.bsort = "due"; S.showDone = false; S.showHid = false; $("showhid").checked = false;
     history.replaceState(null, "", location.pathname + location.search);
     savePrefs(); render(); window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" }); say("標準の表示に戻しました。");
   });
   $("showDone").addEventListener("change", function () { S.showDone = $("showDone").checked; savePrefs(); render(); });
   $("sort").addEventListener("change", function () { S.sort = $("sort").value; savePrefs(); render(); });
+  $("bgroup").addEventListener("change", function () { S.bgroup = $("bgroup").value; savePrefs(); render(); });
+  $("bsort").addEventListener("change", function () { S.bsort = $("bsort").value; savePrefs(); render(); });
   $("views").addEventListener("click", function (e) { var b = e.target.closest("[data-view]"); if (b && b.dataset.view !== S.view) { S.view = b.dataset.view; savePrefs(); render(); } });
   window.addEventListener("hashchange", function () { var h = decodeURIComponent(location.hash.slice(1)) || "all"; if (h !== S.who) { S.who = h; render(); } });
   document.addEventListener("keydown", function (e) {

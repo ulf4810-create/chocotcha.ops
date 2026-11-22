@@ -39,6 +39,12 @@
     <label class="sortw" id="sortW"><span>並べ方</span><select id="sort">
       <option value="due">期限</option><option value="prio">優先度</option><option value="state">状態</option><option value="owner">担当</option><option value="lane">分野</option>
     </select></label>
+    <label class="sortw hide" id="groupW"><span>分け方</span><select id="bgroup">
+      <option value="state">状態</option><option value="prio">優先度</option><option value="due">期限</option><option value="owner">担当</option><option value="lane">分野</option>
+    </select></label>
+    <label class="sortw hide" id="bsortW"><span>並び方</span><select id="bsort">
+      <option value="due">期限順</option><option value="prio">優先度順</option><option value="start">開始日順</option><option value="title">名前順</option>
+    </select></label>
     <label class="chk" id="showDoneL"><input type="checkbox" id="showDone"> 完了も表示</label>
     <label class="chk hide" id="showhidL"><input type="checkbox" id="showhid"> 非表示も表示</label>
     <button id="resetBtn" class="btn sm ghost reset" type="button" title="全員・リスト・期限順（同じ期限は優先度順）に戻す">標準に戻す</button>
@@ -93,6 +99,6 @@
 
 <datalist id="names"></datalist>
 <script src="config.js?v=6"></script>
-<script src="app.js?v=13"></script>
+<script src="app.js?v=14"></script>
 </body>
 </html>
