@@ -82,6 +82,7 @@ function rows_(name) {
 
 function readConfig_() {
   var o = {};
+  if (!sheet_('config')) return o; // config タブがなくても表示は止めない
   rows_('config').forEach(function (r) { o[r.key] = String(r.value || '').trim(); });
   return o;
 }
@@ -241,6 +242,7 @@ function editTask_(t, me) {
 
 function setConfig_(key, value) {
   var sh = sheet_('config');
+  if (!sh) { sh = ss_().insertSheet('config'); sh.appendRow(['key', 'value', '説明']); }
   var v = sh.getDataRange().getValues();
   for (var i = 1; i < v.length; i++) {
     if (String(v[i][0]) === key) { sh.getRange(i + 1, 2).setValue(value); return; }
