@@ -391,11 +391,11 @@
       "</div>" + (p.text ? "<p>" + esc(p.text) + "</p>" : "") + "</div></div>";
   }
   function commentForm() {
-    if (S.isAdmin) return '<form class="cform" id="cform"><textarea id="c-text" maxlength="1000" rows="3" placeholder="コメントを入力" aria-label="コメント"></textarea>' +
-      '<div class="cact"><span class="sub">' + esc(nameOf(S.me.key)) + '（主催）として書き込みます</span><button class="btn pri sm" type="submit">コメント</button></div></form>';
+    if (S.isAdmin) return '<form class="cform" id="cform"><textarea id="c-text" maxlength="1000" rows="3" placeholder="コメントを入力（Shift＋Enterで送信）" aria-label="コメント"></textarea>' +
+      '<div class="cact"><span class="sub">' + esc(nameOf(S.me.key)) + '（主催）として書き込みます・Shift＋Enterで送信</span><button class="btn pri sm" type="submit">コメント</button></div></form>';
     return '<form class="cform" id="cform"><input id="c-name" type="text" maxlength="20" list="names" placeholder="お名前（必須）" autocomplete="name" value="' + esc(ls("ops_name")) + '" aria-label="お名前">' +
-      '<textarea id="c-text" maxlength="1000" rows="3" placeholder="コメントを入力" aria-label="コメント"></textarea>' +
-      '<div class="cact"><span class="sub">名前とコメントは、このページを見る全員に表示されます</span><button class="btn pri sm" type="submit">コメント</button></div></form>';
+      '<textarea id="c-text" maxlength="1000" rows="3" placeholder="コメントを入力（Shift＋Enterで送信）" aria-label="コメント"></textarea>' +
+      '<div class="cact"><span class="sub">名前とコメントは全員に表示されます・Shift＋Enterで送信</span><button class="btn pri sm" type="submit">コメント</button></div></form>';
   }
   function renderSheet() {
     var t = TM[S.cur]; if (!t) { closeSheets(true); return; }
@@ -508,6 +508,11 @@
     if (o && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openTask(o.dataset.open); }
   });
   document.addEventListener("submit", function (e) { if (e.target.id === "cform") { e.preventDefault(); sendPost(); } });
+  // コメント：Shift＋Enterで送信（Enterだけなら改行。日本語の変換中は送らない）
+  document.addEventListener("keydown", function (e) {
+    if (e.target.id !== "c-text" && e.target.id !== "c-name") return;
+    if (e.key === "Enter" && e.shiftKey && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); sendPost(); }
+  });
   document.addEventListener("click", function (e) {
     var t = e.target;
     var r = t.closest("[data-ring]"); if (r) { e.stopPropagation(); toggleDone(r.dataset.ring); return; }
