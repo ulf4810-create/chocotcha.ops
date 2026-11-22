@@ -7,8 +7,9 @@
   --p1:#d1453b;--p2:#eb8909;--p3:#246fe0;--p4:#a3a3a3;
   --s-todo:#7a7a7a;--s-doing:#246fe0;--s-hold:#b07d1a;--s-done:#058527;
   --ease:cubic-bezier(.2,.8,.2,1);--sh1:0 1px 2px rgba(0,0,0,.05),0 1px 1px rgba(0,0,0,.03);--sh2:0 2px 6px rgba(0,0,0,.06),0 12px 32px rgba(0,0,0,.12);
-  --lw:260px
+  --lw:260px;--maxw:880px
 }
+body.wide{--maxw:1280px}
 *{box-sizing:border-box;min-width:0}
 html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
 html,body{margin:0;background:#fff}
@@ -16,7 +17,7 @@ body{color:var(--ink);font:400 15px/1.6 "Noto Sans JP",-apple-system,BlinkMacSys
   -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;font-kerning:normal;overflow-x:clip;-webkit-tap-highlight-color:transparent}
 body.modal{overflow:hidden}
 h1,h2,h3,.tt,.card-t{font-feature-settings:"palt";letter-spacing:.02em}
-.wrap{max-width:880px;margin:0 auto;padding-left:16px;padding-right:16px}
+.wrap{max-width:var(--maxw);margin:0 auto;padding-left:16px;padding-right:16px}
 .hide{display:none!important}
 :focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:4px}
 svg{display:block}
@@ -60,7 +61,6 @@ h1{font-size:17px;line-height:1.3;margin:0;font-weight:700;white-space:nowrap;ov
 
 /* ---- toolbar */
 main{padding-top:4px;padding-bottom:80px}
-main.wide{max-width:1280px}
 .note{font-size:14px;color:var(--sub);background:var(--soft);border-radius:8px;padding:12px 14px;margin-top:16px}
 .tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:12px 0 2px}
 .seg{position:relative;flex:none;display:flex;background:var(--soft);border-radius:8px;padding:2px}
@@ -162,7 +162,7 @@ button.ring:active{transform:scale(.88)}
 @media (min-width:700px){
   .sheet{top:7vh;left:50%;width:min(660px,92vw);max-height:86vh;border-radius:14px;transform:translateX(-50%);animation:popIn .24s var(--ease)}
   .sheet.out{animation:popOut .16s ease forwards}
-  .sheet.small{top:60px;right:max(16px,calc((100vw - 880px) / 2 + 16px));left:auto;width:340px;transform:none;animation:dropIn .2s var(--ease)}
+  .sheet.small{top:60px;right:max(16px,calc((100vw - var(--maxw)) / 2 + 16px));left:auto;width:340px;transform:none;animation:dropIn .2s var(--ease)}
   .sheet.small.out{animation:dropOut .14s ease forwards}
   @keyframes popIn{from{opacity:0;transform:translateX(-50%) translateY(10px) scale(.98)}to{opacity:1;transform:translateX(-50%)}}
   @keyframes popOut{to{opacity:0;transform:translateX(-50%) translateY(6px) scale(.985)}}

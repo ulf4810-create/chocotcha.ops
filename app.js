@@ -300,7 +300,7 @@
     if (!S.data) return;
     var rc = document.querySelector(".recent"); if (rc) S.recentOpen = rc.open;
     renderChips();
-    $("app").classList.toggle("wide", S.view !== "list");
+    document.body.classList.toggle("wide", S.view !== "list");
     ["list", "board", "chart"].forEach(function (v) { $(v === "list" ? "pl" : v === "board" ? "pb" : "pc").classList.toggle("hide", S.view !== v); });
     [].forEach.call($("views").querySelectorAll("button"), function (b) { b.setAttribute("aria-pressed", b.dataset.view === S.view); });
     $("sortW").classList.toggle("hide", S.view === "chart");
