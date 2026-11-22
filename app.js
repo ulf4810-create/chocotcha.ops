@@ -349,15 +349,16 @@
     [["2026-12-29", "2027-01-04", "年末年始"], ["2027-01-20", "2027-02-11", "期末試験（目安）"]].forEach(function (a) { h += '<i class="g-hol" style="left:' + pct(D(a[0])) + ";width:calc(" + pct(D(a[1])) + " - " + pct(D(a[0])) + ')"><b>' + a[2] + "</b></i>"; });
     if (today >= S0 && today < S1) h += '<i class="g-now" style="left:' + pct(today + 0.5) + '"></i>';
     h += "</div>";
-    var vis = visibleTasks();
-    Lanes.forEach(function (l) {
+    var vis = visibleTasks(), LC = ["#2f6fb5", "#16807a", "#7d4cab", "#b07d1a", "#c44f86", "#3f8f3f", "#d0661c", "#4f6f8f", "#8a6a55"];
+    Lanes.forEach(function (l, li) {
       var rows = vis.filter(function (t) { return t.lane === l.key; }).sort(function (a, b) { return D(a.start) - D(b.start) || D(a.end) - D(b.end); });
       if (!rows.length) return;
-      h += '<div class="g-lane"><div class="g-lab">' + esc(l.name) + "</div><div></div></div>";
+      var lc = LC[li % LC.length];
+      h += '<div class="g-lane" style="--lc:' + lc + '"><div class="g-lab">' + esc(l.name) + "<small>" + rows.length + "件</small></div><div></div></div>";
       rows.forEach(function (t) {
         var a = D(t.start), b = D(t.end) + 1, s = stOf(t), c = esc(colorOf(own(t)[0] || "")), p = prOf(t);
         var mk = a === b - 1 ? '<i class="g-ms" style="left:' + pct(a + 0.5) + ";--c:" + c + '"></i>' : '<i class="g-bar' + (s === "hold" ? " hold" : "") + '" style="left:' + pct(a) + ";width:" + pct(S0 + b - a) + ";--c:" + c + '"></i>';
-        h += '<div class="g-row' + (hidden[t.id] ? " is-hid" : "") + (s === "done" ? " is-done" : "") + '" tabindex="0" role="button" data-open="' + esc(t.id) + '"><div class="g-lab">' + (p !== "4" ? '<span class="g-pf" style="--pc:' + PR[p].c + '">' + PR[p].n + "</span>" : "") + esc(t.title) + '</div><div class="g-trk">' + mk + "</div></div>";
+        h += '<div class="g-row' + (hidden[t.id] ? " is-hid" : "") + (s === "done" ? " is-done" : "") + '" style="--lc:' + lc + '" tabindex="0" role="button" data-open="' + esc(t.id) + '"><div class="g-lab">' + (p !== "4" ? '<span class="g-pf" style="--pc:' + PR[p].c + '">' + PR[p].n + "</span>" : "") + esc(t.title) + '</div><div class="g-trk">' + mk + "</div></div>";
       });
     });
     $("g").innerHTML = h;
