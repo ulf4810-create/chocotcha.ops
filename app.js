@@ -590,6 +590,16 @@
   }, 90000);
 
   // ---- start
+  // 新しい版の確認：ページ（index.html）はブラウザに最大10分保存されるため、開いたときに最新版と比べ、古ければ1回だけ読み直す
+  (function () {
+    var me = (document.currentScript && document.currentScript.src || "").match(/app\.js\?v=(\d+)/);
+    if (!me || !window.fetch) return;
+    fetch(location.pathname + "?_=" + Date.now(), { cache: "no-store" }).then(function (r) { return r.text(); }).then(function (html) {
+      var latest = (html.match(/app\.js\?v=(\d+)/) || [])[1];
+      var key = "ops_reloaded_" + latest;
+      if (latest && +latest > +me[1] && !sessionStorage.getItem(key)) { sessionStorage.setItem(key, "1"); location.reload(); }
+    }).catch(function () {});
+  })();
   if (!API) bootErr("接続先がまだ設定されていません（準備中）。");
   else {
     load(true);
