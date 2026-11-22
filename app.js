@@ -62,7 +62,9 @@
     }).catch(function (e) {
       S.busy = false;
       if (login) { S.pass = ""; $("gerr").textContent = errText(e); return; }
-      if (e && (e.error === "bad_pass" || e.error === "not_configured")) { logout("管理モードを終了しました（パスワードが変わった可能性があります）。"); return; }
+      var authErr = e && (e.error === "bad_pass" || e.error === "not_configured" || e.error === "admin_only");
+      if (authErr && S.pass) { logout("管理モードを終了しました（パスワードが変わった可能性があります）。"); return; }
+      if (authErr && !S.data) { bootErr("準備中です（サイト側の更新待ち）。少し時間をおいて開き直してください。"); return; }
       if (!S.data) bootErr(errText(e)); else if (!quiet) say(errText(e));
     });
   }
