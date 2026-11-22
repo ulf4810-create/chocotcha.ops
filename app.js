@@ -12,7 +12,7 @@
   try { localStorage.removeItem("ops_pass"); } catch (e) {}
   var P = {}; try { P = JSON.parse(ls("ops_prefs") || "{}") || {}; } catch (e) {}
 
-  var S = { pass: "", me: null, data: null, sig: "", isAdmin: false,
+  var S = { ver: 0, pass: "", me: null, data: null, sig: "", isAdmin: false,
     view: VIEWS[P.view] ? P.view : "list", sort: SORTS[P.sort] ? P.sort : "due", showDone: !!P.showDone,
     who: decodeURIComponent(location.hash.slice(1)) || "all", showHid: false, busy: false, cur: "", editId: "", open: "" };
   var savePrefs = function () { ls("ops_prefs", JSON.stringify({ view: S.view, sort: S.sort, showDone: S.showDone })); };
@@ -65,7 +65,10 @@
     bad_task: "そのタスクが見つかりません（削除された可能性があります）。", bad_post: "そのコメントが見つかりません。",
     unknown_action: "サイト側の更新がまだです（Apps Scriptの再デプロイ待ち）。"
   };
-  var errText = function (e) { return ERR[e && e.error] || "通信できませんでした。少し待ってからもう一度お試しください。"; };
+  var errText = function (e) {
+    if (e && e.error === "admin_only" && !S.isAdmin) return "サイト側の更新がまだのため、保存できませんでした（日髙さんがApps Scriptを更新すると使えます）。";
+    return ERR[e && e.error] || "通信できませんでした。少し待ってからもう一度お試しください。";
+  };
 
   // ---- sheets（くわしい画面・入力画面）
   var SHEETS = ["taskSheet", "addForm", "admForm"], lastFocus = null, closeT = 0;
@@ -287,19 +290,26 @@
 
   // ---- コメント一覧（管理モード）：タスクごとにまとめ、新しいコメントがあるタスクを上に
   var seenAt = ls("ops_seen");
+  // コメントが主役の一覧：新しい順、日付ごと。各コメントの下に、どのタスクかを小さく添える
+  function dayLabel(at) { var x = D(String(at).slice(0, 10)); return x === today ? "今日" : x === today - 1 ? "昨日" : md(x); }
   function renderComments() {
-    var by = {};
-    S.data.posts.forEach(function (p) { var t = TM[p.task]; if (t && (S.who === "all" || own(t).indexOf(S.who) >= 0)) (by[p.task] = by[p.task] || []).push(p); });
-    var last = function (id) { return by[id].reduce(function (m, p) { return p.at > m ? p.at : m; }, ""); };
-    var ids = Object.keys(by).sort(function (a, b) { return last(a) < last(b) ? 1 : -1; });
-    var total = 0, fresh = 0; ids.forEach(function (id) { total += by[id].length; by[id].forEach(function (p) { if (seenAt && p.at > seenAt) fresh++; }); });
-    var h = '<div class="cm-head"><b>コメント一覧</b><span>' + total + "件・" + ids.length + "タスク" + (fresh ? "（新着 " + fresh + "件）" : "") + "</span></div>";
-    h += ids.map(function (id) {
-      var t = TM[id], ps = by[id].slice().sort(function (a, b) { return a.at < b.at ? -1 : 1; });
-      return '<section class="cg"><div class="cg-task" data-open="' + esc(id) + '" tabindex="0" role="button">' + ringHtml(t) + '<div class="tbody"><div class="tt">' + esc(t.title) + "</div>" + metaHtml(t) + "</div></div>" +
-        '<div class="cg-list">' + ps.map(function (p) { return post(p).replace("<time>", seenAt && p.at > seenAt ? '<span class="new">新着</span><time>' : "<time>"); }).join("") + "</div></section>";
-    }).join("");
-    if (!ids.length) h += '<p class="empty-st">まだコメントはありません。</p>';
+    var ps = S.data.posts.filter(function (p) { var t = TM[p.task]; return t && (S.who === "all" || own(t).indexOf(S.who) >= 0); })
+      .sort(function (a, b) { return a.at < b.at ? 1 : -1; });
+    var fresh = ps.filter(function (p) { return seenAt && p.at > seenAt; }).length;
+    var h = '<div class="cm-head"><b>コメント</b><span>' + ps.length + "件" + (fresh ? '・<span class="new">新着 ' + fresh + "件</span>" : "") + "</span></div>", day = "";
+    ps.forEach(function (p) {
+      var t = TM[p.task], dl0 = dayLabel(p.at), isNew = seenAt && p.at > seenAt, s = stOf(t);
+      if (dl0 !== day) { day = dl0; h += '<h2 class="sec-h cday">' + esc(dl0) + "</h2>"; }
+      h += '<article class="ci' + (isNew ? " is-new" : "") + '">' + av(p.member) + '<div class="ci-b">' +
+        '<div class="chd"><b>' + esc(nameOf(p.member)) + "</b>" + (M[p.member] ? '<span class="tagb">主催</span>' : "") + (isNew ? '<span class="new">新着</span>' : "") +
+        (p.type === "done" ? '<span class="tagb ok">完了を記録</span>' : "") + "<time>" + esc(String(p.at).slice(11, 16)) + "</time>" +
+        '<button type="button" class="icon" data-del="' + esc(p.id) + '" aria-label="このコメントを削除" title="削除">' + I.x + "</button></div>" +
+        (p.text ? '<p class="ci-t">' + esc(p.text) + "</p>" : "") +
+        '<div class="ci-ctx"><button type="button" class="ctx" data-open="' + esc(t.id) + '"><span class="ctx-k">タスク</span><span class="ctx-t">' + esc(t.title) + "</span>" + dueHtml(t) + stPill(s) + "</button>" +
+        '<button type="button" class="btn sm ghost" data-reply="' + esc(t.id) + '">返信</button></div>' +
+        "</div></article>";
+    });
+    if (!ps.length) h += '<p class="empty-st">まだコメントはありません。</p>';
     $("pm").innerHTML = h;
   }
   function markSeen() {
@@ -390,7 +400,9 @@
       (S.isAdmin ? '<button type="button" class="icon" data-del="' + esc(p.id) + '" aria-label="このコメントを削除" title="削除">' + I.x + "</button>" : "") +
       "</div>" + (p.text ? "<p>" + esc(p.text) + "</p>" : "") + "</div></div>";
   }
+  var OLD = function () { return S.ver && S.ver < 6; };
   function commentForm() {
+    if (OLD() && !S.isAdmin) return '<p class="note">コメント機能は準備中です（サイト側の更新待ち）。日髙さんが更新すると書き込めるようになります。</p>';
     if (S.isAdmin) return '<form class="cform" id="cform"><textarea id="c-text" maxlength="1000" rows="3" placeholder="コメントを入力（Shift＋Enterで送信）" aria-label="コメント"></textarea>' +
       '<div class="cact"><span class="sub">' + esc(nameOf(S.me.key)) + '（主催）として書き込みます・Shift＋Enterで送信</span><button class="btn pri sm" type="submit">コメント</button></div></form>';
     return '<form class="cform" id="cform"><input id="c-name" type="text" maxlength="20" list="names" placeholder="お名前（必須）" autocomplete="name" value="' + esc(ls("ops_name")) + '" aria-label="お名前">' +
@@ -422,6 +434,7 @@
       (t.ref ? "<div><dt>根拠</dt><dd>決定ログ " + esc(t.ref) + "</dd></div>" : "") +
       (h ? '<div><dt>表示</dt><dd>非表示（確認済み）' + (h === true ? "" : '<span class="sub">' + esc(h) + "</span>") + "</dd></div>" : "") +
       "</dl>" +
+      (S.isAdmin && OLD() ? '<p class="note">サイト側（Apps Script）がまだ v' + S.ver + ' です。状態・優先度の変更と、閲覧者のコメントは、v6 に更新すると使えます。</p>' : "") +
       (S.isAdmin ? '<div class="admrow"><button type="button" class="btn sm" data-edit="' + esc(t.id) + '">編集</button>' +
         (h ? '<button type="button" class="btn sm" data-hide="0">表示に戻す</button>' : '<button type="button" class="btn sm" data-hide="1">確認済みにして非表示</button>') + "</div>" : "") +
       '<h3 class="ch">コメント<span>' + ps.length + "</span></h3>" +
@@ -521,6 +534,7 @@
     if (t.closest("[data-close]")) { closeSheets(); return; }
     var st = t.closest("[data-st]"); if (st) { var cur = TM[S.cur]; if ((cur.state || "") !== st.dataset.st) patch(S.cur, { state: st.dataset.st }, "状態を「" + (st.dataset.st ? ST[st.dataset.st].n : "自動") + "」にしました。"); return; }
     var pr = t.closest("[data-pr]"); if (pr) { if (prOf(TM[S.cur]) !== pr.dataset.pr) patch(S.cur, { priority: pr.dataset.pr }, "優先度を" + PR[pr.dataset.pr].n + "にしました。"); return; }
+    var rp = t.closest("[data-reply]"); if (rp) { openTask(rp.dataset.reply); setTimeout(function () { var ta = $("c-text"); if (ta) { ta.focus(); ta.scrollIntoView({ block: "center", behavior: reduced ? "auto" : "smooth" }); } }, 80); return; }
     var ed = t.closest("[data-edit]"); if (ed) { openEdit(ed.dataset.edit); return; }
     var del = t.closest("[data-del]");
     if (del) {
@@ -557,5 +571,9 @@
 
   // ---- start
   if (!API) bootErr("接続先がまだ設定されていません（準備中）。");
-  else load(true);
+  else {
+    load(true);
+    // サイト側（Apps Script）の版を確かめる。古い版ではコメントや状態の変更が保存できないので、先に知らせる
+    fetch(API).then(function (r) { return r.json(); }).then(function (j) { S.ver = +j.version || 0; if (S.open === "taskSheet") renderSheet(); }).catch(function () {});
+  }
 })();
