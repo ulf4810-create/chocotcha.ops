@@ -28,7 +28,7 @@
       .then(function (j) { if (!j.ok) throw j; return j; });
   }
   function say(t) { var m = $("msg"); m.textContent = t || ""; m.classList.toggle("hide", !t); }
-  var ERR = { bad_pass: "パスワードが違います。", not_configured: "管理用パスワードがまだ設定されていません（スプレッドシートのmembersで、日髙さんの行のpass列に入力します）。", task_title: "タスク名を入力してください。", task_lane: "分野を選んでください。", task_owner: "担当を1人以上選んでください。", task_date: "開始日と期限を正しく入れてください（期限は開始日以降）。", no_api: "接続先がまだ設定されていません。", admin_only: "この操作は管理モードでだけできます。", empty: "内容を入力してください。" };
+  var ERR = { bad_pass: "パスワードが違います。", not_configured: "管理用パスワードがまだ設定されていません（スプレッドシートのmembersで、日髙さんの行のpass列に入力します）。", task_title: "タスク名を入力してください。", task_lane: "分野を選んでください。", task_owner: "担当を1人以上選んでください。", task_date: "開始日と期限を正しく入れてください（期限は開始日以降）。", no_api: "接続先がまだ設定されていません。", admin_only: "この操作は管理モードでだけできます。", bad_task: "そのタスクが見つかりません（スプレッドシートで削除された可能性があります）。", empty: "内容を入力してください。" };
   var errText = function (e) { return ERR[e && e.error] || "通信できませんでした。少し待ってから「最新にする」を押してください。"; };
 
   // ---- admin login (管理モード)
@@ -43,7 +43,7 @@
   });
   function logout(msg) {
     S.pass = ""; S.isAdmin = false; S.me = null; S.showHid = false; $("showhid").checked = false;
-    $("gpass").value = ""; $("addForm").classList.add("hide"); $("admForm").classList.add("hide");
+    $("gpass").value = ""; $("addForm").classList.add("hide"); $("admForm").classList.add("hide"); if (S.editId) { clearForm(); formMode(""); }
     if (S.data) { S.data.admin = false; setup(); render(); }
     say(msg || "");
   }
@@ -133,7 +133,7 @@
       '<div class="body"><p class="info">' + esc(laneName(t.lane)) + (t.ref ? "｜根拠：決定ログ " + esc(t.ref) : "") + (t.note ? "<br>" + esc(t.note) : "") + "</p>" + thread(t) +
       (S.isAdmin ? '<div class="form" data-task="' + esc(t.id) + '"><label class="sub" for="tx-' + esc(t.id) + '">メモ・連絡を書き込む（閲覧者にも表示されます）</label><textarea id="tx-' + esc(t.id) + '" maxlength="1000" placeholder="例：〇〇さんから申込済みと連絡あり"></textarea>' +
       '<div class="acts"><button class="btn ok" data-post="done">完了を記録</button><button class="btn" data-post="note">書き込む</button></div></div>' +
-      '<div class="admbar">' + (hidden[t.id] ? '<span class="sub">確認済み（' + esc(hidden[t.id] === true ? "" : hidden[t.id]) + '）</span><button class="btn sm" data-hide="0">表示に戻す</button>' : '<button class="btn sm pri" data-hide="1">確認済みにして非表示</button>') + "</div>" : "") +
+      '<div class="admbar"><button class="btn sm" data-edit="' + esc(t.id) + '">編集</button>' + (hidden[t.id] ? '<span class="sub">確認済み（' + esc(hidden[t.id] === true ? "" : hidden[t.id]) + '）</span><button class="btn sm" data-hide="0">表示に戻す</button>' : '<button class="btn sm pri" data-hide="1">確認済みにして非表示</button>') + "</div>" : "") +
       "</div></details>";
   }
   var laneName = function (k) { var l = Lanes.filter(function (x) { return x.key === k; })[0]; return l ? l.name : k; };
@@ -203,12 +203,34 @@
   // ---- events
   $("who").addEventListener("change", function () { location.hash = $("who").value; render(); });
   var ymd = function (x) { return new Date(x * 864e5).toISOString().slice(0, 10); };
+  // 追加と編集で同じ画面を使う。S.editId があれば編集。
+  function formMode(id) {
+    S.editId = id || "";
+    $("addHead").firstChild.nodeValue = id ? "タスクを編集（" + id + "）" : "タスクを追加";
+    $("addSubmit").textContent = id ? "保存する" : "追加する";
+  }
+  function clearForm() {
+    $("a-title").value = ""; $("a-ref").value = ""; $("a-note").value = ""; $("a-kind").value = "d"; $("a-end").disabled = false;
+    [].forEach.call($("a-owners").querySelectorAll("input"), function (c) { c.checked = false; });
+  }
+  function closeForm() { $("addForm").classList.add("hide"); if (S.editId) { clearForm(); formMode(""); } }
   $("addBtn").addEventListener("click", function () {
-    var f = $("addForm"); f.classList.toggle("hide");
+    var f = $("addForm");
+    if (S.editId) { clearForm(); formMode(""); f.classList.remove("hide"); }
+    else f.classList.toggle("hide");
     if (!f.classList.contains("hide")) { if (!$("a-start").value) { $("a-start").value = ymd(today); $("a-end").value = ymd(today); } $("a-title").focus(); }
   });
-  $("addCancel").addEventListener("click", function () { $("addForm").classList.add("hide"); });
-  $("a-kind").addEventListener("change", function () { if ($("a-kind").value === "m") $("a-end").value = $("a-start").value; });
+  function openEdit(id) {
+    var t = S.data.tasks.filter(function (x) { return x.id === id; })[0]; if (!t) return;
+    formMode(id);
+    $("a-title").value = t.title || ""; $("a-lane").value = t.lane; $("a-kind").value = K[t.kind] ? t.kind : "d";
+    $("a-start").value = t.start; $("a-end").value = t.end; $("a-ref").value = t.ref || ""; $("a-note").value = t.note || ""; syncKind();
+    var os = own(t); [].forEach.call($("a-owners").querySelectorAll("input"), function (c) { c.checked = os.indexOf(c.value) >= 0; });
+    $("addForm").classList.remove("hide"); $("addForm").scrollIntoView({ block: "start" }); $("a-title").focus();
+  }
+  $("addCancel").addEventListener("click", closeForm);
+  function syncKind() { var m = $("a-kind").value === "m"; $("a-end").disabled = m; if (m) $("a-end").value = $("a-start").value; }
+  $("a-kind").addEventListener("change", syncKind);
   $("a-start").addEventListener("change", function () { if (!$("a-end").value || $("a-end").value < $("a-start").value || $("a-kind").value === "m") $("a-end").value = $("a-start").value; });
   $("addForm").addEventListener("submit", function (e) {
     e.preventDefault();
@@ -217,11 +239,15 @@
     if (!t.title) { say(ERR.task_title); $("a-title").focus(); return; }
     if (!owners.length) { say(ERR.task_owner); return; }
     if (!t.start || !t.end || t.end < t.start) { say(ERR.task_date); return; }
-    var btn = $("addForm").querySelector("button[type=submit]"); btn.disabled = true;
-    api({ action: "addTask", task: t }).then(function (j) {
-      btn.disabled = false; $("a-title").value = ""; $("a-ref").value = ""; $("a-note").value = "";
-      [].forEach.call($("a-owners").querySelectorAll("input"), function (c) { c.checked = false; });
-      $("addForm").classList.add("hide"); S.open[j.id] = true; say("タスクを追加しました（" + j.id + "）。"); load(false, true, true);
+    var btn = $("addSubmit"); btn.disabled = true;
+    var editing = S.editId;
+    if (editing) t.id = editing;
+    api({ action: editing ? "editTask" : "addTask", task: t }).then(function (j) {
+      btn.disabled = false; clearForm(); formMode("");
+      $("addForm").classList.add("hide"); S.open[j.id] = true;
+      say(editing ? "タスクを更新しました（" + j.id + "）。" : "タスクを追加しました（" + j.id + "）。");
+      load(false, true, true);
+      setTimeout(function () { var el = $("task-" + j.id); if (el) el.scrollIntoView({ block: "start" }); }, 1500);
     }).catch(function (er) { btn.disabled = false; say(errText(er)); });
   });
   $("showhid").addEventListener("change", function () { S.showHid = $("showhid").checked; render(); });
@@ -253,6 +279,8 @@
       form.querySelector("[data-post=note]").textContent = "返信する";
       form.querySelector("textarea").focus(); return;
     }
+    var ed = e.target.closest("button[data-edit]");
+    if (ed) { openEdit(ed.dataset.edit); return; }
     var hd = e.target.closest("button[data-hide]");
     if (hd) {
       var tk = hd.closest("details").dataset.id; hd.disabled = true;

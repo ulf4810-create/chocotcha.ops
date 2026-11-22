@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#ffffff">
 <title>チョコっちゃ‼運営ボード</title>
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
 <div class="wrap">
@@ -42,7 +42,7 @@
 <button id="addBtn" class="btn sm pri hide">＋ タスクを追加</button>
 </div>
 <form id="addForm" class="addf hide" autocomplete="off">
-<h2 class="h">タスクを追加<small>日髙さんのみ</small></h2>
+<h2 class="h" id="addHead">タスクを追加<small>日髙さんのみ</small></h2>
 <label for="a-title">タスク名</label><input id="a-title" type="text" maxlength="200" required>
 <div class="g2">
 <div><label for="a-lane">分野</label><select id="a-lane"></select></div>
@@ -53,7 +53,7 @@
 <fieldset><legend>担当（複数可）</legend><div id="a-owners" class="owners"></div></fieldset>
 <label for="a-ref">根拠（任意。例：D85、LINE 11/22）</label><input id="a-ref" type="text" maxlength="60">
 <label for="a-note">メモ（任意）</label><textarea id="a-note" maxlength="300"></textarea>
-<div class="acts"><button type="submit" class="btn pri">追加する</button><button type="button" id="addCancel" class="btn">閉じる</button></div>
+<div class="acts"><button type="submit" id="addSubmit" class="btn pri">追加する</button><button type="button" id="addCancel" class="btn">閉じる</button></div>
 </form>
 <p id="msg" class="note hide" role="status"></p>
 <section id="pl"></section>
@@ -65,6 +65,6 @@
 </main>
 </div>
 <script src="config.js?v=4"></script>
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>
