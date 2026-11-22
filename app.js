@@ -7,7 +7,7 @@
     get: function (k) { try { return localStorage.getItem("ops_" + k) || ""; } catch (e) { return ""; } },
     set: function (k, v) { try { if (v) localStorage.setItem("ops_" + k, v); else localStorage.removeItem("ops_" + k); } catch (e) {} }
   };
-  var S = { pass: LS.get("pass"), admin: LS.get("admin"), me: LS.get("me"), data: null, isAdmin: false,
+  var S = { pass: LS.get("pass"), me: null, data: null, isAdmin: false,
     view: (window.innerWidth || 0) >= 900 ? "chart" : "list", open: {}, showHid: false, busy: false };
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
@@ -24,32 +24,31 @@
   // ---- api
   function api(body) {
     if (!API) return Promise.reject({ error: "no_api" });
-    body.pass = S.pass; if (S.admin) body.admin = S.admin;
+    body.pass = S.pass;
     return fetch(API, { method: "POST", body: JSON.stringify(body) })
       .then(function (r) { return r.json(); })
       .then(function (j) { if (!j.ok) throw j; return j; });
   }
   function say(t) { var m = $("msg"); m.textContent = t || ""; m.classList.toggle("hide", !t); }
-  var ERR = { bad_pass: "合言葉が違います。", not_configured: "合言葉がまだ設定されていません（日髙さんがスプレッドシートのconfigに入力します）。", no_api: "接続先がまだ設定されていません。", admin_only: "日髙さん用の合言葉が必要です。", empty: "内容を入力してください。", bad_member: "「あなた」を選んでください。" };
+  var ERR = { bad_pass: "パスワードが違います。", not_configured: "パスワードがまだ設定されていません（日髙さんがスプレッドシートのmembersに入力します）。", task_title: "タスク名を入力してください。", task_lane: "分野を選んでください。", task_owner: "担当を1人以上選んでください。", task_date: "開始日と期限を正しく入れてください（期限は開始日以降）。", no_api: "接続先がまだ設定されていません。", admin_only: "この操作は日髙さんだけができます。", empty: "内容を入力してください。", bad_member: "「あなた」を選んでください。" };
   var errText = function (e) { return ERR[e && e.error] || "通信できませんでした。少し待ってから「最新にする」を押してください。"; };
 
   // ---- gate
   function showGate(msg) { $("gate").classList.remove("hide"); $("app").classList.add("hide"); $("gerr").textContent = msg || ""; }
   $("gform").addEventListener("submit", function (e) {
     e.preventDefault();
-    S.pass = $("gpass").value.trim(); S.admin = $("gadmin").value.trim();
+    S.pass = $("gpass").value.trim();
     $("gerr").textContent = "確認しています…";
     load(true);
   });
-  $("logout").addEventListener("click", function () { LS.set("pass", ""); LS.set("admin", ""); S.pass = S.admin = ""; S.data = null; showGate(""); });
+  $("logout").addEventListener("click", function () { LS.set("pass", ""); S.pass = ""; S.data = null; S.me = null; S.open = {}; $("gpass").value = ""; $("addForm").classList.add("hide"); showGate("ログアウトしました。"); });
 
   function load(fromGate, quiet, keep) {
     if (S.busy) return; S.busy = true;
     if (!fromGate && !quiet) say("読み込んでいます…");
     api({ action: "data" }).then(function (j) {
-      S.busy = false; S.data = j; S.isAdmin = !!j.admin;
-      LS.set("pass", S.pass); LS.set("admin", S.isAdmin ? S.admin : "");
-      if (!S.isAdmin) S.admin = "";
+      S.busy = false; S.data = j; S.isAdmin = !!j.admin; S.me = j.me || null;
+      LS.set("pass", S.pass); $("gpass").value = "";
       $("gate").classList.add("hide"); $("app").classList.remove("hide"); if (!keep) say("");
       setup(); render();
     }).catch(function (e) {
@@ -71,10 +70,14 @@
     var cur = $("who").value || (location.hash.slice(1) || "all");
     $("who").innerHTML = keys.map(function (k) { return '<option value="' + esc(k) + '">' + esc(k === "all" ? "全員" : M[k].name) + "（" + (k === "all" ? d.tasks.length : cnt(k)) + "）</option>"; }).join("");
     $("who").value = keys.indexOf(cur) >= 0 ? cur : "all";
-    $("me").innerHTML = '<option value="">選んでください</option>' + d.members.filter(function (m) { return String(m.post).toUpperCase() === "TRUE"; })
-      .map(function (m) { return '<option value="' + esc(m.key) + '">' + esc(m.name) + "</option>"; }).join("");
-    $("me").value = S.me && M[S.me] ? S.me : "";
-    $("role").textContent = S.isAdmin ? "日髙さん（管理）として表示中" : "";
+    $("meName").textContent = S.me ? S.me.name + "さん" + (S.isAdmin ? "（管理）" : "") : "";
+    $("addBtn").classList.toggle("hide", !S.isAdmin);
+    if (S.isAdmin) {
+      $("a-lane").innerHTML = Lanes.map(function (l) { return '<option value="' + esc(l.key) + '">' + esc(l.name) + "</option>"; }).join("");
+      if (!$("a-lane").dataset.v) { $("a-lane").value = "e"; $("a-lane").dataset.v = "1"; }
+      var checked = {}; [].forEach.call($("a-owners").querySelectorAll("input:checked"), function (c) { checked[c.value] = 1; });
+      $("a-owners").innerHTML = d.members.map(function (m) { return '<label><input type="checkbox" value="' + esc(m.key) + '"' + (checked[m.key] ? " checked" : "") + "> " + esc(m.name) + "</label>"; }).join("");
+    }
   }
   var own = function (t) { return String(t.owners || "").split(",").filter(Boolean); };
   var col = function (t) { var m = M[own(t)[0]]; return m ? m.color : "#888"; };
@@ -186,7 +189,28 @@
 
   // ---- events
   $("who").addEventListener("change", function () { location.hash = $("who").value; render(); });
-  $("me").addEventListener("change", function () { S.me = $("me").value; LS.set("me", S.me); });
+  var ymd = function (x) { return new Date(x * 864e5).toISOString().slice(0, 10); };
+  $("addBtn").addEventListener("click", function () {
+    var f = $("addForm"); f.classList.toggle("hide");
+    if (!f.classList.contains("hide")) { if (!$("a-start").value) { $("a-start").value = ymd(today); $("a-end").value = ymd(today); } $("a-title").focus(); }
+  });
+  $("addCancel").addEventListener("click", function () { $("addForm").classList.add("hide"); });
+  $("a-kind").addEventListener("change", function () { if ($("a-kind").value === "m") $("a-end").value = $("a-start").value; });
+  $("a-start").addEventListener("change", function () { if (!$("a-end").value || $("a-end").value < $("a-start").value || $("a-kind").value === "m") $("a-end").value = $("a-start").value; });
+  $("addForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var owners = [].map.call($("a-owners").querySelectorAll("input:checked"), function (c) { return c.value; });
+    var t = { title: $("a-title").value.trim(), lane: $("a-lane").value, kind: $("a-kind").value, start: $("a-start").value, end: $("a-kind").value === "m" ? $("a-start").value : $("a-end").value, owners: owners, ref: $("a-ref").value.trim(), note: $("a-note").value.trim() };
+    if (!t.title) { say(ERR.task_title); $("a-title").focus(); return; }
+    if (!owners.length) { say(ERR.task_owner); return; }
+    if (!t.start || !t.end || t.end < t.start) { say(ERR.task_date); return; }
+    var btn = $("addForm").querySelector("button[type=submit]"); btn.disabled = true;
+    api({ action: "addTask", task: t }).then(function (j) {
+      btn.disabled = false; $("a-title").value = ""; $("a-ref").value = ""; $("a-note").value = "";
+      [].forEach.call($("a-owners").querySelectorAll("input"), function (c) { c.checked = false; });
+      $("addForm").classList.add("hide"); S.open[j.id] = true; say("タスクを追加しました（" + j.id + "）。"); load(false, true, true);
+    }).catch(function (er) { btn.disabled = false; say(errText(er)); });
+  });
   $("showhid").addEventListener("change", function () { S.showHid = $("showhid").checked; render(); });
   $("v-list").addEventListener("click", function () { S.view = "list"; render(); });
   $("v-chart").addEventListener("click", function () { S.view = "chart"; render(); });
@@ -199,11 +223,10 @@
     var b = e.target.closest("button[data-post]");
     if (b) {
       var f = b.closest(".form"), tid = f.dataset.task, ta = f.querySelector("textarea"), parent = f.dataset.parent || "";
-      if (!S.me) { say("先に上の「あなた」で自分の名前を選んでください。"); $("me").focus(); return; }
       var type = parent ? "reply" : b.dataset.post, text = ta.value.trim();
       if (!text && type !== "done") { say("内容を入力してください。"); ta.focus(); return; }
       f.querySelectorAll("button").forEach(function (x) { x.disabled = true; });
-      api({ action: "post", task: tid, member: S.me, type: type, text: text, parent: parent }).then(function () {
+      api({ action: "post", task: tid, type: type, text: text, parent: parent }).then(function () {
         ta.value = ""; S.open[tid] = true; say("書き込みました。"); load(false, true, true);
       }).catch(function (er) { say(errText(er)); f.querySelectorAll("button").forEach(function (x) { x.disabled = false; }); });
       return;
