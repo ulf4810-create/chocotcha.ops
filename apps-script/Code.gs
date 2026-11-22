@@ -1,7 +1,8 @@
 /**
- * チョコっちゃ‼フェスタ2027 運営ボード用 API（Google Apps Script） v4
+ * チョコっちゃ‼フェスタ2027 運営ボード用 API（Google Apps Script） v5
  * データ：スプレッドシート「チョコっちゃ‼運営サイト_データ」
- * 閲覧：パスワード不要（URLを知っている人は誰でも見られる。書き込みはできない）。
+ * 閲覧：パスワード不要（URLを知っている人は誰でも見られる）。
+ * コメント：誰でも書ける（名前の入力が必須）。管理者はコメントを削除（非表示）できる。
  * 管理：members シートで role が admin の行の pass 列（日髙さんのパスワード）でだけ、
  *       タスクの追加・編集、書き込み、非表示ができる。パスワードはこのコードには書かない。
  *
@@ -11,13 +12,16 @@
 
 var TZ = 'Asia/Tokyo';
 var MAX_TEXT = 1000;
+var MAX_NAME = 20;
+// パスワードなしで使える操作（閲覧とコメント）
+var PUBLIC = { data: 1, post: 1 };
 var TYPES = { done: 1, question: 1, reply: 1, note: 1 };
 var KINDS = { d: 1, p: 1, x: 1, m: 1 };
 // スプレッドシートの ID（単独のプロジェクトとして作った場合にも使う）
 var SS_ID = '1A-ua2SoD1iGm5jk9CcYlWyCvWYn9zivrOC0eu0aTMHQ';
 
 function doGet() {
-  return json_({ ok: true, service: 'chocotcha-ops', version: 4 });
+  return json_({ ok: true, service: 'chocotcha-ops', version: 5 });
 }
 
 function doPost(e) {
@@ -29,8 +33,8 @@ function doPost(e) {
   }
   var me = null;
   var pass = String(req.pass || '').trim();
-  // 閲覧（data）はパスワードなしで可。パスワードが付いていれば管理者として確認する。
-  if (pass || req.action !== 'data') {
+  // 閲覧とコメントはパスワードなしで可。パスワードが付いていれば管理者として確認する。
+  if (pass || !PUBLIC[req.action]) {
     me = auth_(pass);
     if (me === 'not_configured') return json_({ ok: false, error: 'not_configured' });
     if (!me) {
@@ -50,6 +54,8 @@ function doPost(e) {
         return json_(addTask_(req.task || {}, me));
       case 'editTask':
         return json_(editTask_(req.task || {}, me));
+      case 'deletePost':
+        return json_(deletePost_(req.id));
       default:
         return json_({ ok: false, error: 'unknown_action' });
     }
@@ -115,7 +121,7 @@ function loadAll_(me) {
     }),
     lanes: rows_('lanes'),
     tasks: rows_('tasks'),
-    posts: rows_('posts'),
+    posts: rows_('posts').filter(function (p) { return String(p.hidden || '').toUpperCase() !== 'TRUE'; }),
     status: rows_('status')
   };
 }
@@ -129,7 +135,20 @@ function clean_(s, max) {
 
 function addPost_(req, me) {
   var type = String(req.type || '');
-  if (!TYPES[type]) return { ok: false, error: 'bad_type' };
+  var who;
+  if (me) {
+    if (!TYPES[type]) return { ok: false, error: 'bad_type' };
+    who = me.key;
+  } else {
+    // 管理者以外はコメントのみ。名前は必須。
+    if (type !== 'note') return { ok: false, error: 'admin_only' };
+    who = clean_(req.name, MAX_NAME);
+    if (!who) return { ok: false, error: 'need_name' };
+    // メンバーの内部ID（hidaka など）は主催の書き込みと区別できなくなるので使わせない
+    var keys = rows_('members').map(function (m) { return String(m.key).toLowerCase(); });
+    if (keys.indexOf(who.replace(/^'/, '').toLowerCase()) >= 0) return { ok: false, error: 'bad_name' };
+    if (tooMany_()) return { ok: false, error: 'busy' };
+  }
   var text = clean_(req.text, MAX_TEXT);
   if (!text && type !== 'done') return { ok: false, error: 'empty' };
   var task = clean_(req.task, 20);
@@ -140,8 +159,38 @@ function addPost_(req, me) {
   try {
     var id = 'p' + Utilities.getUuid().replace(/-/g, '').slice(0, 10);
     var at = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm');
-    sheet_('posts').appendRow([id, at, task, me.key, type, text, clean_(req.parent, 20)]);
+    sheet_('posts').appendRow([id, at, task, who, type, text, me ? clean_(req.parent, 20) : '']);
     return { ok: true, id: id, at: at };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// いたずら対策：パスワードなしのコメントは10分間に全体で40件まで
+function tooMany_() {
+  var c = CacheService.getScriptCache();
+  var n = parseInt(c.get('pubposts') || '0', 10) + 1;
+  c.put('pubposts', String(n), 600);
+  return n > 40;
+}
+
+// コメントを削除（posts シートの hidden 列を TRUE にする。行は残る）
+function deletePost_(id) {
+  id = clean_(id, 20);
+  var sh = sheet_('posts');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var v = sh.getDataRange().getValues();
+    var col = v[0].indexOf('hidden');
+    if (col < 0) { col = v[0].length; sh.getRange(1, col + 1).setValue('hidden'); }
+    for (var i = 1; i < v.length; i++) {
+      if (String(v[i][0]) === id) {
+        sh.getRange(i + 1, col + 1).setValue('TRUE');
+        return { ok: true };
+      }
+    }
+    return { ok: false, error: 'bad_post' };
   } finally {
     lock.releaseLock();
   }

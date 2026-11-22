@@ -2,69 +2,80 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#ffffff">
 <title>チョコっちゃ‼運営ボード</title>
-<link rel="stylesheet" href="style.css?v=5">
+<link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
-<div class="wrap">
-<header class="top">
-<div>
-<h1>チョコっちゃ‼フェスタ2027 運営ボード</h1>
-<div class="meta">運営共有（閲覧専用）｜最終更新 <span id="upd">—</span></div>
-</div>
-<div class="cd">開催 2/14（日）まで <b id="cd">—</b> 日</div>
+<header class="appbar">
+  <div class="wrap bar1">
+    <div class="brand">
+      <h1>チョコっちゃ‼運営ボード</h1>
+      <div class="meta">開催 2/14（日）まで <b id="cd">—</b> 日<span class="upd">・最終更新 <span id="upd">—</span></span></div>
+    </div>
+    <div class="acct">
+      <span id="meName" class="me hide"></span>
+      <button id="admOpen" class="btn sm ghost" type="button">管理</button>
+      <button id="logout" class="btn sm hide" type="button">ログアウト</button>
+    </div>
+  </div>
+  <div class="wrap bar2 hide" id="bar2">
+    <div class="chips" id="who" role="group" aria-label="担当で絞り込む"></div>
+    <div class="seg" role="group" aria-label="表示の切り替え"><button id="v-list" type="button" aria-pressed="true">リスト</button><button id="v-chart" type="button" aria-pressed="false">チャート</button></div>
+  </div>
 </header>
-</div>
 
 <p id="boot" class="wrap note">読み込んでいます…</p>
 
-<div id="app" class="hide">
-<div class="bar0"><div class="wrap ctl">
-<div class="whoami"><span id="meName" class="hide"></span><button id="admOpen" class="btn sm">管理</button><button id="logout" class="btn sm hide">ログアウト</button></div>
-<label class="sel" for="who">表示する担当<select id="who"></select></label>
-<div class="seg" role="group" aria-label="表示の切り替え"><button id="v-list" aria-pressed="true">リスト</button><button id="v-chart" aria-pressed="false">チャート</button></div>
-</div></div>
-<main class="wrap">
-<form id="admForm" class="addf hide" autocomplete="off">
-<h2 class="h">管理モード<small>日髙さんのみ</small></h2>
-<p class="sub">ログインはこのページを開いている間だけです。ページを閉じる・再読み込みするとログアウトします。</p>
-<label for="gpass">パスワード</label>
-<input id="gpass" type="password" required autocomplete="current-password">
-<div class="acts"><button type="submit" class="btn pri">ログイン</button><button type="button" id="admCancel" class="btn">閉じる</button></div>
-<p id="gerr" class="err" role="alert"></p>
-</form>
-<div class="tools">
-<label class="chk hide" id="showhidL"><input type="checkbox" id="showhid"> 確認済み（非表示）も表示</label>
-<button id="reload" class="btn sm">最新にする</button>
-<button id="addBtn" class="btn sm pri hide">＋ タスクを追加</button>
-</div>
-<form id="addForm" class="addf hide" autocomplete="off">
-<h2 class="h" id="addHead">タスクを追加<small>日髙さんのみ</small></h2>
-<label for="a-title">タスク名</label><input id="a-title" type="text" maxlength="200" required>
-<div class="g2">
-<div><label for="a-lane">分野</label><select id="a-lane"></select></div>
-<div><label for="a-kind">種別</label><select id="a-kind"><option value="d">決定</option><option value="p">提案（未決定）</option><option value="x">外部の回答待ち</option><option value="m">期日（1日だけ）</option></select></div>
-<div><label for="a-start">開始日</label><input id="a-start" type="date" min="2026-11-01" max="2027-03-31" required></div>
-<div><label for="a-end">期限</label><input id="a-end" type="date" min="2026-11-01" max="2027-03-31" required></div>
-</div>
-<fieldset><legend>担当（複数可）</legend><div id="a-owners" class="owners"></div></fieldset>
-<label for="a-ref">根拠（任意。例：D85、LINE 11/22）</label><input id="a-ref" type="text" maxlength="60">
-<label for="a-note">メモ（任意）</label><textarea id="a-note" maxlength="300"></textarea>
-<div class="acts"><button type="submit" id="addSubmit" class="btn pri">追加する</button><button type="button" id="addCancel" class="btn">閉じる</button></div>
-</form>
-<p id="msg" class="note hide" role="status"></p>
-<section id="pl"></section>
-<section id="pc" class="hide">
-<div class="legend"><span><i></i>決定</span><span><i class="lp"></i>提案（未決定）</span><span><i class="lx"></i>外部の回答待ち</span><span><i class="lm"></i>期日</span><span>灰色の帯：年末年始・期末試験</span></div>
-<div class="scroll" id="sc"><div class="gantt" id="g"></div></div>
-</section>
-<p class="foot">このページは見る専用です。質問や完了の連絡は、これまでどおり日髙さんへ直接お願いします。項目を開くと、根拠（決定ログ番号）・メモが見られます。「提案」はClaudeが決定日から逆算して置いた日付・担当で、主催の決定ではありません。</p>
+<main id="app" class="wrap hide">
+  <div class="tools">
+    <button id="addBtn" class="addline hide" type="button"><span class="plus" aria-hidden="true">＋</span>タスクを追加</button>
+    <label class="chk hide" id="showhidL"><input type="checkbox" id="showhid"> 確認済みも表示</label>
+  </div>
+  <section id="pl"></section>
+  <section id="pc" class="hide">
+    <div class="legend"><span><i></i>決定</span><span><i class="lp"></i>提案（未決定）</span><span><i class="lx"></i>外部の回答待ち</span><span><i class="lm"></i>期日</span><span><i class="lh"></i>年末年始・期末試験</span></div>
+    <div class="scroll" id="sc"><div class="gantt" id="g"></div></div>
+  </section>
+  <p class="foot">タスクを押すと、くわしい内容とコメントが見られます。コメントは誰でも書けます（名前が必要です）。「提案」はClaudeが決定日から逆算して置いた日付・担当で、主催の決定ではありません。</p>
 </main>
-</div>
+
+<p id="msg" class="toast hide" role="status" aria-live="polite"></p>
+<div id="scrim" class="scrim hide"></div>
+
+<section id="taskSheet" class="sheet hide" role="dialog" aria-modal="true" aria-labelledby="tsTitle"></section>
+
+<form id="addForm" class="sheet hide" role="dialog" aria-modal="true" aria-labelledby="addHead" autocomplete="off">
+  <div class="sh-head"><h2 id="addHead" class="sh-h2">タスクを追加</h2><button type="button" class="icon" data-close aria-label="閉じる"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5"/></svg></button></div>
+  <div class="fbody">
+    <div class="field"><label for="a-title">タスク名</label><input id="a-title" class="inp" type="text" maxlength="200" required></div>
+    <div class="field"><label for="a-note">説明（任意）</label><textarea id="a-note" class="inp" maxlength="300" rows="2"></textarea></div>
+    <div class="g2">
+      <div class="field"><label for="a-start">開始日</label><input id="a-start" class="inp" type="date" min="2026-11-01" max="2027-03-31" required></div>
+      <div class="field"><label for="a-end">期限</label><input id="a-end" class="inp" type="date" min="2026-11-01" max="2027-03-31" required></div>
+      <div class="field"><label for="a-lane">分野</label><select id="a-lane" class="inp"></select></div>
+      <div class="field"><label for="a-kind">種別</label><select id="a-kind" class="inp"><option value="d">決定</option><option value="p">提案（未決定）</option><option value="x">外部の回答待ち</option><option value="m">期日（1日だけ）</option></select></div>
+    </div>
+    <fieldset class="field"><legend>担当（複数可）</legend><div id="a-owners" class="owners"></div></fieldset>
+    <div class="field"><label for="a-ref">根拠（任意。例：D85、LINE 11/22）</label><input id="a-ref" class="inp" type="text" maxlength="60"></div>
+  </div>
+  <div class="ffoot"><button type="button" class="btn" data-close>キャンセル</button><button type="submit" id="addSubmit" class="btn pri">追加する</button></div>
+</form>
+
+<form id="admForm" class="sheet small hide" role="dialog" aria-modal="true" aria-labelledby="admHead" autocomplete="off">
+  <div class="sh-head"><h2 id="admHead" class="sh-h2">管理モード</h2><button type="button" class="icon" data-close aria-label="閉じる"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5"/></svg></button></div>
+  <div class="fbody">
+    <p class="sub">日髙さん専用です。ページを閉じる・再読み込みすると自動でログアウトします。</p>
+    <div class="field"><label for="gpass">パスワード</label><input id="gpass" class="inp" type="password" required autocomplete="current-password"></div>
+    <p id="gerr" class="err" role="alert"></p>
+  </div>
+  <div class="ffoot"><button type="button" class="btn" data-close>キャンセル</button><button type="submit" class="btn pri">ログイン</button></div>
+</form>
+
+<datalist id="names"></datalist>
 <script src="config.js?v=6"></script>
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>
