@@ -343,7 +343,7 @@
   // ---- チャート
   function renderChart() {
     var h = '<div class="g-hd"><div class="g-lab"></div><div class="g-t">', x, dt;
-    for (x = S0; x < S1; x++) { dt = new Date(x * 864e5); if (dt.getUTCDate() === 1 || x === S0) h += '<b style="left:calc(' + pct(x) + ' + 4px)">' + (dt.getUTCMonth() + 1) + "月</b>"; if (dt.getUTCDay() === 1) h += '<span style="left:' + pct(x) + '">' + (dt.getUTCMonth() + 1) + "/" + dt.getUTCDate() + "</span>"; }
+    for (x = S0; x < S1; x++) { dt = new Date(x * 864e5); if (dt.getUTCDate() === 1 || x === S0) h += '<b style="left:calc(' + pct(x) + ' + 4px)">' + (dt.getUTCMonth() + 1) + "月</b>"; if (dt.getUTCDay() === 1 && x - S0 >= 3) h += '<span style="left:' + pct(x) + '">' + (dt.getUTCMonth() + 1) + "/" + dt.getUTCDate() + "</span>"; }
     h += '</div></div><div class="g-ov">';
     for (x = S0; x < S1; x++) if (new Date(x * 864e5).getUTCDay() === 1) h += '<i class="g-wk" style="left:' + pct(x) + '"></i>';
     [["2026-12-29", "2027-01-04", "年末年始"], ["2027-01-20", "2027-02-11", "期末試験（目安）"]].forEach(function (a) { h += '<i class="g-hol" style="left:' + pct(D(a[0])) + ";width:calc(" + pct(D(a[1])) + " - " + pct(D(a[0])) + ')"><b>' + a[2] + "</b></i>"; });
