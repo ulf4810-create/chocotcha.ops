@@ -1,8 +1,9 @@
 /**
- * チョコっちゃ‼フェスタ2027 運営ボード用 API（Google Apps Script） v2
+ * チョコっちゃ‼フェスタ2027 運営ボード用 API（Google Apps Script） v3
  * データ：スプレッドシート「チョコっちゃ‼運営サイト_データ」
- * ログイン：members シートの pass 列（メンバーごとのパスワード）。role 列が admin の人は管理者。
- * パスワードはこのコードには書かない（日髙さんが members シートに入力する）。
+ * 閲覧：パスワード不要（URLを知っている人は誰でも見られる。書き込みはできない）。
+ * 管理：members シートで role が admin の行の pass 列（日髙さんのパスワード）でだけ、
+ *       タスク追加・書き込み・非表示ができる。パスワードはこのコードには書かない。
  *
  * コードを貼り替えたら：デプロイ → デプロイを管理 → 鉛筆（編集）→ バージョン「新バージョン」→ デプロイ
  * （URL は変わらない）
@@ -16,7 +17,7 @@ var KINDS = { d: 1, p: 1, x: 1, m: 1 };
 var SS_ID = '1A-ua2SoD1iGm5jk9CcYlWyCvWYn9zivrOC0eu0aTMHQ';
 
 function doGet() {
-  return json_({ ok: true, service: 'chocotcha-ops', version: 2 });
+  return json_({ ok: true, service: 'chocotcha-ops', version: 3 });
 }
 
 function doPost(e) {
@@ -26,11 +27,16 @@ function doPost(e) {
   } catch (err) {
     return json_({ ok: false, error: 'bad_request' });
   }
-  var me = auth_(req.pass);
-  if (me === 'not_configured') return json_({ ok: false, error: 'not_configured' });
-  if (!me) {
-    Utilities.sleep(800); // 総当たりを遅くする
-    return json_({ ok: false, error: 'bad_pass' });
+  var me = null;
+  var pass = String(req.pass || '').trim();
+  // 閲覧（data）はパスワードなしで可。パスワードが付いていれば管理者として確認する。
+  if (pass || req.action !== 'data') {
+    me = auth_(pass);
+    if (me === 'not_configured') return json_({ ok: false, error: 'not_configured' });
+    if (!me) {
+      Utilities.sleep(800); // 総当たりを遅くする
+      return json_({ ok: false, error: pass ? 'bad_pass' : 'admin_only' });
+    }
   }
   try {
     switch (req.action) {
@@ -39,10 +45,8 @@ function doPost(e) {
       case 'post':
         return json_(addPost_(req, me));
       case 'hide':
-        if (!me.admin) return json_({ ok: false, error: 'admin_only' });
         return json_(setHidden_(req.task, !!req.hidden));
       case 'addTask':
-        if (!me.admin) return json_({ ok: false, error: 'admin_only' });
         return json_(addTask_(req.task || {}, me));
       default:
         return json_({ ok: false, error: 'unknown_action' });
@@ -80,18 +84,20 @@ function readConfig_() {
   return o;
 }
 
-// パスワードからメンバーを特定する。誰にもパスワードがなければ not_configured。
+// 管理者（role が admin の行）のパスワードと一致するか確認する。
+// 管理者のパスワードが未入力なら not_configured。admin 以外の行の pass は使わない。
 function auth_(pass) {
   pass = String(pass || '').trim();
-  var ms = rows_('members'), any = false, hit = null;
-  ms.forEach(function (m) {
+  var any = false, hit = null;
+  rows_('members').forEach(function (m) {
+    if (String(m.role || '').trim().toLowerCase() !== 'admin') return;
     var p = String(m.pass || '').trim();
     if (p) any = true;
     if (p && pass && p === pass) hit = m;
   });
   if (!any) return 'not_configured';
   if (!hit) return null;
-  return { key: hit.key, name: hit.name, admin: String(hit.role || '').toLowerCase() === 'admin' };
+  return { key: hit.key, name: hit.name, admin: true };
 }
 
 function loadAll_(me) {
@@ -99,7 +105,7 @@ function loadAll_(me) {
   return {
     ok: true,
     me: me,
-    admin: me.admin,
+    admin: !!(me && me.admin),
     updated: cfg.updated || '',
     members: rows_('members').map(function (m) {
       return { key: m.key, name: m.name, color: m.color, post: m.post }; // パスワードは返さない

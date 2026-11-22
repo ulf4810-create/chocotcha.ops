@@ -6,39 +6,38 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#ffffff">
 <title>チョコっちゃ‼運営ボード</title>
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 <div class="wrap">
 <header class="top">
 <div>
 <h1>チョコっちゃ‼フェスタ2027 運営ボード</h1>
-<div class="meta">運営メンバー専用｜最終更新 <span id="upd">—</span></div>
+<div class="meta">運営共有（閲覧専用）｜最終更新 <span id="upd">—</span></div>
 </div>
 <div class="cd">開催 2/14（日）まで <b id="cd">—</b> 日</div>
 </header>
 </div>
 
-<section id="gate" class="wrap gate hide" aria-labelledby="gt">
-<h2 id="gt">ログイン</h2>
-<p class="sub">運営メンバー用のページです。日髙さんから個別に伝えられた、あなたのパスワードを入力してください。この端末ではログインしたままになります（共用の端末では使い終わったらログアウトしてください）。</p>
-<form id="gform" autocomplete="off">
-<label for="gpass">パスワード</label>
-<input id="gpass" type="password" required autocomplete="current-password">
-<button type="submit" class="btn pri">ログイン</button>
-<p id="gerr" class="err" role="alert"></p>
-</form>
-</section>
+<p id="boot" class="wrap note">読み込んでいます…</p>
 
 <div id="app" class="hide">
 <div class="bar0"><div class="wrap ctl">
-<div class="whoami"><span id="meName"></span><button id="logout" class="btn sm">ログアウト</button></div>
+<div class="whoami"><span id="meName" class="hide"></span><button id="admOpen" class="btn sm">管理</button><button id="logout" class="btn sm hide">ログアウト</button></div>
 <label class="sel" for="who">表示する担当<select id="who"></select></label>
 <div class="seg" role="group" aria-label="表示の切り替え"><button id="v-list" aria-pressed="true">リスト</button><button id="v-chart" aria-pressed="false">チャート</button></div>
 </div></div>
 <main class="wrap">
+<form id="admForm" class="addf hide" autocomplete="off">
+<h2 class="h">管理モード<small>日髙さんのみ</small></h2>
+<p class="sub">ログインはこのページを開いている間だけです。ページを閉じる・再読み込みするとログアウトします。</p>
+<label for="gpass">パスワード</label>
+<input id="gpass" type="password" required autocomplete="current-password">
+<div class="acts"><button type="submit" class="btn pri">ログイン</button><button type="button" id="admCancel" class="btn">閉じる</button></div>
+<p id="gerr" class="err" role="alert"></p>
+</form>
 <div class="tools">
-<label class="chk"><input type="checkbox" id="showhid"> 確認済み（非表示）も表示</label>
+<label class="chk hide" id="showhidL"><input type="checkbox" id="showhid"> 確認済み（非表示）も表示</label>
 <button id="reload" class="btn sm">最新にする</button>
 <button id="addBtn" class="btn sm pri hide">＋ タスクを追加</button>
 </div>
@@ -62,10 +61,10 @@
 <div class="legend"><span><i></i>決定</span><span><i class="lp"></i>提案（未決定）</span><span><i class="lx"></i>外部の回答待ち</span><span><i class="lm"></i>期日</span><span>灰色の帯：年末年始・期末試験</span></div>
 <div class="scroll" id="sc"><div class="gantt" id="g"></div></div>
 </section>
-<p class="foot">項目を開くと、根拠（決定ログ番号）・メモ・やり取りが見られます。「完了を報告」しても項目は消えません。日髙さんが確認して非表示にします。「提案」はClaudeが決定日から逆算して置いた日付・担当で、主催の決定ではありません。</p>
+<p class="foot">このページは見る専用です。質問や完了の連絡は、これまでどおり日髙さんへ直接お願いします。項目を開くと、根拠（決定ログ番号）・メモが見られます。「提案」はClaudeが決定日から逆算して置いた日付・担当で、主催の決定ではありません。</p>
 </main>
 </div>
-<script src="config.js?v=3"></script>
-<script src="app.js?v=3"></script>
+<script src="config.js?v=4"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>

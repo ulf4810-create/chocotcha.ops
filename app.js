@@ -2,12 +2,10 @@
   "use strict";
   var API = (window.OPS_CONFIG && window.OPS_CONFIG.api) || "";
   var K = { d: "決定", p: "提案", x: "回答待ち", m: "期日" };
-  var TYPE = { done: "完了報告", question: "質問", reply: "返信", note: "コメント" };
-  var LS = {
-    get: function (k) { try { return localStorage.getItem("ops_" + k) || ""; } catch (e) { return ""; } },
-    set: function (k, v) { try { if (v) localStorage.setItem("ops_" + k, v); else localStorage.removeItem("ops_" + k); } catch (e) {} }
-  };
-  var S = { pass: LS.get("pass"), me: null, data: null, isAdmin: false,
+  var TYPE = { done: "完了", question: "質問", reply: "返信", note: "コメント" };
+  // パスワードは保存しない（ページを閉じる・再読み込みでログアウト）。以前の版が保存した分は消す。
+  try { localStorage.removeItem("ops_pass"); } catch (e) {}
+  var S = { pass: "", me: null, data: null, isAdmin: false,
     view: (window.innerWidth || 0) >= 900 ? "chart" : "list", open: {}, showHid: false, busy: false };
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
@@ -24,37 +22,48 @@
   // ---- api
   function api(body) {
     if (!API) return Promise.reject({ error: "no_api" });
-    body.pass = S.pass;
+    if (S.pass) body.pass = S.pass;
     return fetch(API, { method: "POST", body: JSON.stringify(body) })
       .then(function (r) { return r.json(); })
       .then(function (j) { if (!j.ok) throw j; return j; });
   }
   function say(t) { var m = $("msg"); m.textContent = t || ""; m.classList.toggle("hide", !t); }
-  var ERR = { bad_pass: "パスワードが違います。", not_configured: "パスワードがまだ設定されていません（日髙さんがスプレッドシートのmembersに入力します）。", task_title: "タスク名を入力してください。", task_lane: "分野を選んでください。", task_owner: "担当を1人以上選んでください。", task_date: "開始日と期限を正しく入れてください（期限は開始日以降）。", no_api: "接続先がまだ設定されていません。", admin_only: "この操作は日髙さんだけができます。", empty: "内容を入力してください。", bad_member: "「あなた」を選んでください。" };
+  var ERR = { bad_pass: "パスワードが違います。", not_configured: "管理用パスワードがまだ設定されていません（スプレッドシートのmembersで、日髙さんの行のpass列に入力します）。", task_title: "タスク名を入力してください。", task_lane: "分野を選んでください。", task_owner: "担当を1人以上選んでください。", task_date: "開始日と期限を正しく入れてください（期限は開始日以降）。", no_api: "接続先がまだ設定されていません。", admin_only: "この操作は管理モードでだけできます。", empty: "内容を入力してください。" };
   var errText = function (e) { return ERR[e && e.error] || "通信できませんでした。少し待ってから「最新にする」を押してください。"; };
 
-  // ---- gate
-  function showGate(msg) { $("gate").classList.remove("hide"); $("app").classList.add("hide"); $("gerr").textContent = msg || ""; }
-  $("gform").addEventListener("submit", function (e) {
+  // ---- admin login (管理モード)
+  function bootErr(msg) { var b = $("boot"); b.textContent = msg; b.classList.remove("hide"); }
+  $("admOpen").addEventListener("click", function () { var f = $("admForm"); f.classList.toggle("hide"); $("gerr").textContent = ""; if (!f.classList.contains("hide")) $("gpass").focus(); });
+  $("admCancel").addEventListener("click", function () { $("admForm").classList.add("hide"); $("gpass").value = ""; });
+  $("admForm").addEventListener("submit", function (e) {
     e.preventDefault();
-    S.pass = $("gpass").value.trim();
+    var p = $("gpass").value.trim(); if (!p) return;
     $("gerr").textContent = "確認しています…";
-    load(true);
+    S.pass = p; load(false, true, false, true);
   });
-  $("logout").addEventListener("click", function () { LS.set("pass", ""); S.pass = ""; S.data = null; S.me = null; S.open = {}; $("gpass").value = ""; $("addForm").classList.add("hide"); showGate("ログアウトしました。"); });
+  function logout(msg) {
+    S.pass = ""; S.isAdmin = false; S.me = null; S.showHid = false; $("showhid").checked = false;
+    $("gpass").value = ""; $("addForm").classList.add("hide"); $("admForm").classList.add("hide");
+    if (S.data) { S.data.admin = false; setup(); render(); }
+    say(msg || "");
+  }
+  $("logout").addEventListener("click", function () { logout("ログアウトしました。"); });
 
-  function load(fromGate, quiet, keep) {
+  function load(first, quiet, keep, login) {
     if (S.busy) return; S.busy = true;
-    if (!fromGate && !quiet) say("読み込んでいます…");
+    if (!first && !quiet) say("読み込んでいます…");
     api({ action: "data" }).then(function (j) {
-      S.busy = false; S.data = j; S.isAdmin = !!j.admin; S.me = j.me || null;
-      LS.set("pass", S.pass); $("gpass").value = "";
-      $("gate").classList.add("hide"); $("app").classList.remove("hide"); if (!keep) say("");
+      S.busy = false; S.data = j; S.isAdmin = !!j.admin; S.me = S.isAdmin ? j.me : null;
+      if (!S.isAdmin) S.pass = "";
+      $("boot").classList.add("hide"); $("app").classList.remove("hide");
+      if (login) { $("gpass").value = ""; $("gerr").textContent = ""; $("admForm").classList.add("hide"); say("管理モードでログインしました。"); }
+      else if (!keep) say("");
       setup(); render();
     }).catch(function (e) {
       S.busy = false;
-      if (e && (e.error === "bad_pass" || e.error === "not_configured")) { LS.set("pass", ""); showGate(errText(e)); }
-      else if (fromGate || !S.data) showGate(errText(e)); else if (!quiet) say(errText(e));
+      if (login) { S.pass = ""; $("gerr").textContent = errText(e); return; }
+      if (e && (e.error === "bad_pass" || e.error === "not_configured")) { logout("管理モードを終了しました（パスワードが変わった可能性があります）。"); return; }
+      if (!S.data) bootErr(errText(e)); else if (!quiet) say(errText(e));
     });
   }
 
@@ -70,8 +79,10 @@
     var cur = $("who").value || (location.hash.slice(1) || "all");
     $("who").innerHTML = keys.map(function (k) { return '<option value="' + esc(k) + '">' + esc(k === "all" ? "全員" : M[k].name) + "（" + (k === "all" ? d.tasks.length : cnt(k)) + "）</option>"; }).join("");
     $("who").value = keys.indexOf(cur) >= 0 ? cur : "all";
-    $("meName").textContent = S.me ? S.me.name + "さん" + (S.isAdmin ? "（管理）" : "") : "";
-    $("addBtn").classList.toggle("hide", !S.isAdmin);
+    $("meName").textContent = S.isAdmin && S.me ? S.me.name + "さん（管理モード）" : "";
+    $("meName").classList.toggle("hide", !S.isAdmin); $("logout").classList.toggle("hide", !S.isAdmin); $("admOpen").classList.toggle("hide", S.isAdmin);
+    $("addBtn").classList.toggle("hide", !S.isAdmin); $("showhidL").classList.toggle("hide", !S.isAdmin);
+    if (!S.isAdmin) { S.showHid = false; $("showhid").checked = false; }
     if (S.isAdmin) {
       $("a-lane").innerHTML = Lanes.map(function (l) { return '<option value="' + esc(l.key) + '">' + esc(l.name) + "</option>"; }).join("");
       if (!$("a-lane").dataset.v) { $("a-lane").value = "e"; $("a-lane").dataset.v = "1"; }
@@ -94,7 +105,7 @@
   function badges(t) {
     var f = flags(t), h = "";
     if (hidden[t.id]) h += '<span class="st">確認済み</span>';
-    else if (f.done) h += '<span class="st done">完了報告あり</span>';
+    else if (f.done) h += '<span class="st done">完了</span>';
     if (f.q) h += '<span class="st q">未回答の質問 ' + f.q + "</span>";
     if (f.n) h += '<span class="st c">やり取り ' + f.n + "</span>";
     return h;
@@ -108,19 +119,19 @@
       var who = M[p.member] ? M[p.member].name : p.member;
       return '<div class="ps' + (rep ? " reply" : "") + '"><div class="h"><b>' + esc(who) + '</b><span class="st ' + (p.type === "done" ? "done" : p.type === "question" ? "q" : "c") + '">' + esc(TYPE[p.type] || p.type) + "</span><time>" + esc(p.at) + "</time></div>" +
         (p.text ? "<p>" + esc(p.text) + "</p>" : "") +
-        (p.type === "question" && !rep ? '<div class="rb"><button class="btn sm" data-reply="' + esc(p.id) + '" data-task="' + esc(t.id) + '">返信する</button></div>' : "") + "</div>" +
+        (S.isAdmin && p.type === "question" && !rep ? '<div class="rb"><button class="btn sm" data-reply="' + esc(p.id) + '" data-task="' + esc(t.id) + '">返信する</button></div>' : "") + "</div>" +
         ps.filter(function (r) { return r.parent === p.id; }).map(function (r) { return one(r, true); }).join("");
     };
-    return top.length ? '<div class="thread">' + top.map(function (p) { return one(p, false); }).join("") + "</div>" : '<p class="info">まだやり取りはありません。</p>';
+    return top.length ? '<div class="thread">' + top.map(function (p) { return one(p, false); }).join("") + "</div>" : (S.isAdmin ? '<p class="info">まだ書き込みはありません。</p>' : "");
   }
   function item(t) {
     var isOpen = !!S.open[t.id];
     return '<details class="it' + (hidden[t.id] ? " hid" : "") + '" id="task-' + esc(t.id) + '" data-id="' + esc(t.id) + '" style="--c:' + esc(col(t)) + '"' + (isOpen ? " open" : "") + '><summary><div class="d">' + MD(t.start) + (t.start !== t.end ? "<span>〜" + MD(t.end) + "</span>" : "") +
       '</div><div><div class="tt">' + esc(t.title) + '</div><div class="who"><span><i class="dot"></i>' + esc(nm(t)) + '</span><span class="st ' + esc(t.kind) + '">' + esc(K[t.kind] || "") + "</span>" + badges(t) + "</div></div></summary>" +
       '<div class="body"><p class="info">' + esc(laneName(t.lane)) + (t.ref ? "｜根拠：決定ログ " + esc(t.ref) : "") + (t.note ? "<br>" + esc(t.note) : "") + "</p>" + thread(t) +
-      '<div class="form" data-task="' + esc(t.id) + '"><label class="sub" for="tx-' + esc(t.id) + '">報告・質問・コメント</label><textarea id="tx-' + esc(t.id) + '" maxlength="1000" placeholder="例：申込を済ませました／〇〇はどうしますか？"></textarea>' +
-      '<div class="acts"><button class="btn ok" data-post="done">完了を報告</button><button class="btn" data-post="question">質問する</button><button class="btn" data-post="note">コメント</button></div></div>' +
-      (S.isAdmin ? '<div class="admbar">' + (hidden[t.id] ? '<span class="sub">確認済み（' + esc(hidden[t.id] === true ? "" : hidden[t.id]) + '）</span><button class="btn sm" data-hide="0">表示に戻す</button>' : '<button class="btn sm pri" data-hide="1">確認済みにして非表示</button>') + "</div>" : "") +
+      (S.isAdmin ? '<div class="form" data-task="' + esc(t.id) + '"><label class="sub" for="tx-' + esc(t.id) + '">メモ・連絡を書き込む（閲覧者にも表示されます）</label><textarea id="tx-' + esc(t.id) + '" maxlength="1000" placeholder="例：〇〇さんから申込済みと連絡あり"></textarea>' +
+      '<div class="acts"><button class="btn ok" data-post="done">完了を記録</button><button class="btn" data-post="note">書き込む</button></div></div>' +
+      '<div class="admbar">' + (hidden[t.id] ? '<span class="sub">確認済み（' + esc(hidden[t.id] === true ? "" : hidden[t.id]) + '）</span><button class="btn sm" data-hide="0">表示に戻す</button>' : '<button class="btn sm pri" data-hide="1">確認済みにして非表示</button>') + "</div>" : "") +
       "</div></details>";
   }
   var laneName = function (k) { var l = Lanes.filter(function (x) { return x.key === k; })[0]; return l ? l.name : k; };
@@ -138,13 +149,13 @@
     }).join("") + "</div>";
     if (S.isAdmin) {
       var wait = S.data.tasks.filter(function (t) { return !hidden[t.id] && flags(t).done; });
-      if (wait.length) h += '<h2 class="h">確認待ち（完了報告あり）<small>' + wait.length + "件</small></h2><div class=\"news\">" + wait.map(function (t) { return '<div class="nw" data-go="' + esc(t.id) + '" tabindex="0"><time>' + MD(t.end) + "</time><div><b>" + esc(nm(t)) + "</b>｜" + esc(t.title) + "</div></div>"; }).join("") + "</div>";
+      if (wait.length) h += '<h2 class="h">確認待ち（完了の記録あり）<small>' + wait.length + "件</small></h2><div class=\"news\">" + wait.map(function (t) { return '<div class="nw" data-go="' + esc(t.id) + '" tabindex="0"><time>' + MD(t.end) + "</time><div><b>" + esc(nm(t)) + "</b>｜" + esc(t.title) + "</div></div>"; }).join("") + "</div>";
     }
     var G = [], add = function (n, t) { var x = G.filter(function (z) { return z[0] === n; })[0]; if (!x) G.push(x = [n, []]); x[1].push(t); };
     ts.forEach(function (t) { var a = D(t.start), b = D(t.end); if (b < today) add("past", t); else if (a <= today + 6) add("今日から7日以内", t); else if (a <= today + 13) add("来週", t); else add(Number(t.start.split("-")[1]) + "月", t); });
     if (!ts.length) h += '<p class="note">表示するタスクはありません。</p>';
     h += G.map(function (g) {
-      return g[0] === "past" ? '<h2 class="h">期限を過ぎたもの<small>' + g[1].length + "件（完了したら報告してください）</small></h2>" + g[1].map(item).join("")
+      return g[0] === "past" ? '<h2 class="h">期限を過ぎたもの<small>' + g[1].length + "件</small></h2>" + g[1].map(item).join("")
         : '<h2 class="h">' + g[0] + "<small>" + g[1].length + "件</small></h2>" + g[1].map(item).join("");
     }).join("");
     $("pl").innerHTML = h;
@@ -167,7 +178,7 @@
       rows.forEach(function (t) {
         var a = D(t.start), b = D(t.end) + 1, f = flags(t);
         var mk = t.kind === "m" ? '<i class="m" style="left:' + pct(a + 0.5) + ";--c:" + esc(col(t)) + '"></i>' : '<i class="b ' + esc(t.kind) + '" style="left:' + pct(a) + ";width:" + pct(S0 + b - a) + ";--c:" + esc(col(t)) + '"></i>';
-        h += '<div class="row' + (hidden[t.id] ? " hid" : "") + '" tabindex="0" data-go="' + esc(t.id) + '"><div class="lab">' + esc(t.title) + (f.done && !hidden[t.id] ? ' <span class="mk done">完了報告</span>' : "") + (f.q ? ' <span class="mk q">質問</span>' : "") + '</div><div class="trk">' + mk + "</div></div>";
+        h += '<div class="row' + (hidden[t.id] ? " hid" : "") + '" tabindex="0" data-go="' + esc(t.id) + '"><div class="lab">' + esc(t.title) + (f.done && !hidden[t.id] ? ' <span class="mk done">完了</span>' : "") + (f.q ? ' <span class="mk q">質問</span>' : "") + '</div><div class="trk">' + mk + "</div></div>";
       });
     });
     $("g").innerHTML = h;
@@ -236,7 +247,7 @@
       var form = r.closest(".body").querySelector(".form");
       form.dataset.parent = r.dataset.reply;
       form.querySelector("label").textContent = "質問への返信";
-      form.querySelector("[data-post=done]").classList.add("hide"); form.querySelector("[data-post=question]").classList.add("hide");
+      form.querySelector("[data-post=done]").classList.add("hide");
       form.querySelector("[data-post=note]").textContent = "返信する";
       form.querySelector("textarea").focus(); return;
     }
@@ -250,6 +261,6 @@
   setInterval(function () { if (document.visibilityState === "visible" && S.data && !(document.activeElement && document.activeElement.matches("textarea"))) load(false, true, true); }, 90000);
 
   // ---- start
-  if (!API) showGate("接続先がまだ設定されていません（準備中）。");
-  else if (S.pass) load(true); else showGate("");
+  if (!API) bootErr("接続先がまだ設定されていません（準備中）。");
+  else load(true);
 })();
