@@ -57,7 +57,7 @@
     <div class="legend"><span><i></i>期間</span><span><i class="lm"></i>1日だけ</span><span><i class="lh2"></i>保留</span><span><i class="ld"></i>完了</span><span><i class="lh"></i>年末年始・期末試験</span></div>
     <div class="scroll" id="sc"><div class="gantt" id="g"></div></div>
   </section>
-  <p class="foot">タスクを押すと、くわしい内容とコメントが見られます。コメントは誰でも書けます（名前が必要です）。状態は、日髙さんが設定していないものは日付から自動で「未着手／進行中」になります。</p>
+  <p class="foot">タスクを押すと、くわしい内容とコメントが見られます。コメントは誰でも書けます（名前が必要です）。状態は、日髙さんが設定していないものは日付から自動で「未着手／進行中」になります。優先度は「緊急度（期限まで14日以内か）」と「重要度」の組み合わせで決まります：P1＝緊急・重要、P2＝重要、P3＝緊急、P4＝そのほか。</p>
 </main>
 
 <p id="msg" class="toast hide" role="status" aria-live="polite"></p>
@@ -74,8 +74,8 @@
       <div class="field"><label for="a-start">開始日</label><input id="a-start" class="inp" type="date" min="2026-11-01" max="2027-03-31" required></div>
       <div class="field"><label for="a-end">期限</label><input id="a-end" class="inp" type="date" min="2026-11-01" max="2027-03-31" required></div>
     </div>
-    <fieldset class="field"><legend>優先度</legend><div class="pick" id="a-prio">
-      <label class="p1"><input type="radio" name="a-prio" value="1"><span>P1 最優先</span></label><label class="p2"><input type="radio" name="a-prio" value="2"><span>P2 高</span></label><label class="p3"><input type="radio" name="a-prio" value="3"><span>P3 中</span></label><label class="p4"><input type="radio" name="a-prio" value="4" checked><span>P4 なし</span></label>
+    <fieldset class="field"><legend>重要度（緊急度は期限から自動。両方で優先度P1〜P4が決まります）</legend><div class="pick" id="a-prio">
+      <label class="p1"><input type="radio" name="a-prio" value="1"><span>重要</span></label><label class="p4"><input type="radio" name="a-prio" value="4" checked><span>ふつう</span></label>
     </div></fieldset>
     <div class="g2">
       <div class="field"><label for="a-state">状態</label><select id="a-state" class="inp"><option value="">自動（日付から）</option><option value="todo">未着手</option><option value="doing">進行中</option><option value="hold">保留</option><option value="done">完了</option></select></div>
@@ -99,6 +99,6 @@
 
 <datalist id="names"></datalist>
 <script src="config.js?v=6"></script>
-<script src="app.js?v=19"></script>
+<script src="app.js?v=20"></script>
 </body>
 </html>

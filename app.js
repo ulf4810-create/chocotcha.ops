@@ -4,7 +4,10 @@
   // 状態（空欄＝日付から自動）と優先度（Todoist と同じ P1〜P4）
   var ST = { todo: { n: "未着手", c: "var(--s-todo)" }, doing: { n: "進行中", c: "var(--s-doing)" }, hold: { n: "保留", c: "var(--s-hold)" }, done: { n: "完了", c: "var(--s-done)" } };
   var ST_ORDER = ["todo", "doing", "hold", "done"];
-  var PR = { "1": { n: "P1", l: "最優先", c: "var(--p1)" }, "2": { n: "P2", l: "高", c: "var(--p2)" }, "3": { n: "P3", l: "中", c: "var(--p3)" }, "4": { n: "P4", l: "なし", c: "var(--p4)" } };
+  // 優先度＝緊急度×重要度。重要度だけを保存し（priority 列：1〜2＝重要、3〜4・空欄＝ふつう）、
+  // 緊急度は期限から自動で決める（期限まで URG 日以内、または期限切れ＝緊急。完了は除く）。
+  var URG = 14;
+  var PR = { "1": { n: "P1", l: "緊急・重要", c: "var(--p1)" }, "2": { n: "P2", l: "重要", c: "var(--p2)" }, "3": { n: "P3", l: "緊急", c: "var(--p3)" }, "4": { n: "P4", l: "そのほか", c: "var(--p4)" } };
   var SORTS = { due: 1, prio: 1, state: 1, owner: 1, lane: 1 }, BSORTS = { due: 1, prio: 1, start: 1, title: 1 }, VIEWS = { list: 1, board: 1, chart: 1, comments: 1 };
 
   // パスワードは保存しない（以前の版が保存した分は消す）。名前と表示の好みだけ端末に覚える。
@@ -163,7 +166,9 @@
   var av = function (k) { var n = nameOf(k); return '<span class="av" style="background:' + esc(colorOf(k)) + '" title="' + esc(n) + '" aria-hidden="true">' + esc(n.charAt(0)) + "</span>"; };
   var own = function (t) { return String(t.owners || "").split(",").filter(Boolean); };
   var laneName = function (k) { var l = Lanes.filter(function (x) { return x.key === k; })[0]; return l ? l.name : k; };
-  var prOf = function (t) { return PR[String(t.priority || "")] ? String(t.priority) : "4"; };
+  var isImp = function (t) { var v = String(t.priority || ""); return v === "1" || v === "2"; };
+  var isUrg = function (t) { return stOf(t) !== "done" && D(t.end) <= today + URG; };
+  var prOf = function (t) { var i = isImp(t), u = isUrg(t); return i ? (u ? "1" : "2") : (u ? "3" : "4"); };
   function postsDone(t) { return (postsBy[t.id] || []).some(function (p) { return p.type === "done"; }); }
   function stOf(t) { var s = t.state || ""; if (ST[s]) return s; if (postsDone(t)) return "done"; return D(t.start) <= today ? "doing" : "todo"; }
   var isAuto = function (t) { return !ST[t.state || ""]; };
@@ -218,7 +223,7 @@
       : '<span class="' + cls + '"' + sty + ' aria-hidden="true">' + I.check + "</span>";
   }
   function stPill(s) { return '<span class="stp" style="--c:' + ST[s].c + '"><i></i>' + ST[s].n + "</span>"; }
-  function prFlag(t) { var p = prOf(t); return p === "4" ? "" : '<span class="pf" style="--pc:' + PR[p].c + '" title="優先度 ' + PR[p].l + '">' + I.flag + PR[p].n + "</span>"; }
+  function prFlag(t) { var p = prOf(t); return p === "4" ? "" : '<span class="pf" style="--pc:' + PR[p].c + '" title="' + PR[p].l + '">' + I.flag + PR[p].n + "</span>"; }
   function ownHtml(t) { var os = own(t); return '<span class="own"><span class="avs">' + os.map(av).join("") + "</span>" + esc(os.map(nameOf).join("・")) + "</span>"; }
   function metaHtml(t, compact) {
     var s = stOf(t), n = (postsBy[t.id] || []).length;
@@ -283,7 +288,7 @@
     var C = [], col = function (title, dot, field, val, list) { C.push({ title: title, dot: dot, field: field || "", val: val || "", list: list }); };
     var G = S.bgroup;
     if (G === "state") ST_ORDER.forEach(function (s) { col(ST[s].n, ST[s].c, "state", s, ts.filter(function (t) { return stOf(t) === s; })); });
-    else if (G === "prio") ["1", "2", "3", "4"].forEach(function (p) { col(PR[p].n + " " + PR[p].l, PR[p].c, "priority", p, ts.filter(function (t) { return prOf(t) === p; })); });
+    else if (G === "prio") ["1", "2", "3", "4"].forEach(function (p) { col(PR[p].n + " " + PR[p].l, PR[p].c, "", "", ts.filter(function (t) { return prOf(t) === p; })); });
     else if (G === "owner") S.data.members.forEach(function (m) { if (S.who !== "all" && m.key !== S.who) return; var l = ts.filter(function (t) { return own(t).indexOf(m.key) >= 0; }); if (l.length) col(esc(short(m.name)), m.color, "", "", l); });
     else if (G === "lane") Lanes.forEach(function (ln) { var l = ts.filter(function (t) { return t.lane === ln.key; }); if (l.length) col("# " + esc(ln.name), "", "", "", l); });
     else [["期限切れ", "var(--over)", -1e9, today - 1], ["今日", "var(--today)", today, today], ["7日以内", "var(--week)", today + 1, today + 6], ["30日以内", "var(--p3)", today + 7, today + 30], ["それ以降", "var(--p4)", today + 31, 1e9]]
@@ -437,9 +442,12 @@
         ST_ORDER.map(function (k) { return '<button type="button" class="opt" data-st="' + k + '" aria-pressed="' + (!isAuto(t) && s === k) + '" style="--c:' + ST[k].c + '"><i></i>' + ST[k].n + "</button>"; }).join("") + "</div>" +
         (isAuto(t) ? '<span class="sub">今は日付から「' + ST[s].n + "」</span>" : "")
       : stPill(s) + (isAuto(t) && s !== "done" ? '<span class="sub">日付から自動</span>' : "");
+    var prNow = '<span class="pf" style="--pc:' + PR[p].c + '">' + I.flag + PR[p].n + " " + PR[p].l + "</span>" +
+      '<span class="sub">' + (isUrg(t) ? "期限まで" + URG + "日以内" : "期限まで" + URG + "日より先") + "・" + (isImp(t) ? "重要" : "ふつう") + "</span>";
     var prDD = S.isAdmin
-      ? '<div class="opts" role="group" aria-label="優先度">' + ["1", "2", "3", "4"].map(function (k) { return '<button type="button" class="opt" data-pr="' + k + '" aria-pressed="' + (p === k) + '" style="--c:' + PR[k].c + '"><i></i>' + PR[k].n + " " + PR[k].l + "</button>"; }).join("") + "</div>"
-      : (p === "4" ? '<span class="sub">なし</span>' : '<span class="pf" style="--pc:' + PR[p].c + '">' + I.flag + PR[p].n + " " + PR[p].l + "</span>");
+      ? prNow + '<div class="opts" role="group" aria-label="重要度"><button type="button" class="opt" data-pr="1" aria-pressed="' + isImp(t) + '" style="--c:var(--p1)"><i></i>重要</button>' +
+        '<button type="button" class="opt" data-pr="4" aria-pressed="' + !isImp(t) + '" style="--c:var(--p4)"><i></i>ふつう</button></div>'
+      : prNow;
     $("taskSheet").innerHTML =
       '<div class="sh-head"><span class="crumb"># ' + esc(laneName(t.lane)) + '</span><button type="button" class="icon" data-close aria-label="閉じる">' + I.x + "</button></div>" +
       '<div class="sh-body"><div class="sh-title">' + ringHtml(t) + '<h2 id="tsTitle">' + esc(t.title) + "</h2></div>" +
@@ -500,7 +508,7 @@
   function openEdit(id) {
     var t = TM[id]; if (!t) return;
     formMode(id);
-    $("a-title").value = t.title || ""; $("a-lane").value = t.lane; $("a-state").value = ST[t.state || ""] ? t.state : ""; setPrio(prOf(t));
+    $("a-title").value = t.title || ""; $("a-lane").value = t.lane; $("a-state").value = ST[t.state || ""] ? t.state : ""; setPrio(isImp(t) ? "1" : "4");
     $("a-start").value = t.start; $("a-end").value = t.end; $("a-ref").value = t.ref || ""; $("a-note").value = t.note || "";
     var os = own(t); [].forEach.call($("a-owners").querySelectorAll("input"), function (c) { c.checked = os.indexOf(c.value) >= 0; });
     show("addForm", "#a-title");
@@ -563,7 +571,7 @@
     var o = t.closest("[data-open]"); if (o && !o.closest(".sheet")) { openTask(o.dataset.open); return; }
     if (t.closest("[data-close]")) { closeSheets(); return; }
     var st = t.closest("[data-st]"); if (st) { var cur = TM[S.cur]; if ((cur.state || "") !== st.dataset.st) patch(S.cur, { state: st.dataset.st }, "状態を「" + (st.dataset.st ? ST[st.dataset.st].n : "自動") + "」にしました。"); return; }
-    var pr = t.closest("[data-pr]"); if (pr) { if (prOf(TM[S.cur]) !== pr.dataset.pr) patch(S.cur, { priority: pr.dataset.pr }, "優先度を" + PR[pr.dataset.pr].n + "にしました。"); return; }
+    var pr = t.closest("[data-pr]"); if (pr) { var imp1 = pr.dataset.pr === "1"; if (isImp(TM[S.cur]) !== imp1) patch(S.cur, { priority: pr.dataset.pr }, imp1 ? "重要にしました。" : "ふつうにしました。"); return; }
     var ed = t.closest("[data-edit]"); if (ed) { openEdit(ed.dataset.edit); return; }
     var hd = t.closest("[data-hide]");
     if (hd) {
