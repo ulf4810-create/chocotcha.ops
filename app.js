@@ -110,6 +110,54 @@
   });
   document.addEventListener("keydown", function (e) { if (e.key === "Escape" && S.open) closeSheets(); });
 
+  // スマホ：画面の上の部分（つまみ・見出し）を下にスワイプすると閉じる。
+  // タスク画面は、中身がいちばん上までスクロールされているときは本文からの下スワイプでも閉じる。
+  (function () {
+    var mq = window.matchMedia ? window.matchMedia("(max-width: 699px)") : { matches: false };
+    var drag = null;
+    function startOk(t, sheet, y) {
+      if (t.closest("input,textarea,select,button,a,[data-del]")) return false;
+      if (t.closest(".sh-head") || y - sheet.getBoundingClientRect().top < 28) return true; // 見出し・つまみ
+      if (sheet.id === "taskSheet") { var b = sheet.querySelector(".sh-body"); return !!b && b.scrollTop <= 0; }
+      return false;
+    }
+    document.addEventListener("touchstart", function (e) {
+      if (!mq.matches || !S.open || e.touches.length !== 1) return;
+      var sheet = e.target.closest && e.target.closest(".sheet"); if (!sheet || sheet.id !== S.open) return;
+      var y = e.touches[0].clientY;
+      if (!startOk(e.target, sheet, y)) return;
+      drag = { el: sheet, y0: y, x0: e.touches[0].clientX, t0: Date.now(), dy: 0, on: false, body: !e.target.closest(".sh-head") && y - sheet.getBoundingClientRect().top >= 28 };
+    }, { passive: true });
+    document.addEventListener("touchmove", function (e) {
+      if (!drag) return;
+      var dy = e.touches[0].clientY - drag.y0, dx = e.touches[0].clientX - drag.x0;
+      if (!drag.on) {
+        if (Math.abs(dy) < 6) return;
+        // 上向きや横向きの動きは、ふつうのスクロールに任せる
+        if (dy < 0 || Math.abs(dx) > Math.abs(dy)) { drag = null; return; }
+        drag.on = true; drag.el.style.transition = "none"; drag.el.style.animation = "none";
+      }
+      drag.dy = Math.max(0, dy);
+      drag.el.style.transform = "translateY(" + drag.dy + "px)";
+      $("scrim").style.opacity = String(Math.max(0, 1 - drag.dy / (drag.el.offsetHeight || 600)));
+      if (e.cancelable) e.preventDefault();
+    }, { passive: false });
+    function end() {
+      if (!drag) return;
+      var d = drag; drag = null; if (!d.on) return;
+      var v = d.dy / Math.max(1, Date.now() - d.t0), sc = $("scrim");
+      d.el.style.transition = "transform .22s cubic-bezier(.2,.8,.2,1)"; sc.style.transition = "opacity .22s ease";
+      if (d.dy > Math.min(120, d.el.offsetHeight * 0.25) || (v > 0.6 && d.dy > 30)) {
+        d.el.style.transform = "translateY(100%)"; sc.style.opacity = "0";
+        setTimeout(function () { closeSheets(true); d.el.style.cssText = ""; sc.style.cssText = ""; }, 220);
+      } else {
+        d.el.style.transform = ""; sc.style.opacity = "";
+        setTimeout(function () { d.el.style.cssText = ""; sc.style.cssText = ""; }, 240);
+      }
+    }
+    document.addEventListener("touchend", end); document.addEventListener("touchcancel", end);
+  })();
+
   // ---- 管理モード（右上）
   $("admOpen").addEventListener("click", function () { show("admForm", "#gpass"); });
   $("admForm").addEventListener("submit", function (e) {

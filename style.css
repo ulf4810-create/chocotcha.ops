@@ -384,3 +384,4 @@ h1{font-size:18px}
   .g-lab{font-size:12.5px;padding-left:10px}
   .g-lane .g-lab{font-size:13px}
 }
+@media (max-width:699px){.sheet .sh-head{touch-action:none}.sheet::before{width:40px;height:5px;margin-top:9px}}
