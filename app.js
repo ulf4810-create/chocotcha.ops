@@ -117,7 +117,7 @@
     var drag = null;
     function startOk(t, sheet, y) {
       if (t.closest("input,textarea,select,button,a,[data-del]")) return false;
-      if (t.closest(".sh-head") || y - sheet.getBoundingClientRect().top < 28) return true; // 見出し・つまみ
+      if (t === sheet || t.closest(".sh-head")) return true; // つまみ（シートの上端）・見出し
       if (sheet.id === "taskSheet") { var b = sheet.querySelector(".sh-body"); return !!b && b.scrollTop <= 0; }
       return false;
     }
@@ -126,7 +126,7 @@
       var sheet = e.target.closest && e.target.closest(".sheet"); if (!sheet || sheet.id !== S.open) return;
       var y = e.touches[0].clientY;
       if (!startOk(e.target, sheet, y)) return;
-      drag = { el: sheet, y0: y, x0: e.touches[0].clientX, t0: Date.now(), dy: 0, on: false, body: !e.target.closest(".sh-head") && y - sheet.getBoundingClientRect().top >= 28 };
+      drag = { el: sheet, y0: y, x0: e.touches[0].clientX, t0: Date.now(), dy: 0, on: false, };
     }, { passive: true });
     document.addEventListener("touchmove", function (e) {
       if (!drag) return;
